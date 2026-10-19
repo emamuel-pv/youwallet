@@ -582,12 +582,13 @@ const AUTH_ERR = {
   user_already_exists:"Ese correo ya tiene cuenta. Inicia sesión.", email_exists:"Ese correo ya tiene cuenta. Inicia sesión.",
   weak_password:"Esa contraseña es muy débil. Usa al menos 8 caracteres con letras y números.",
   email_address_invalid:"Ese correo no es válido.", signup_disabled:"La creación de cuentas está desactivada en Supabase.",
-  over_email_send_rate_limit:"Se enviaron muchos correos. Espera unos minutos.", over_request_rate_limit:"Demasiados intentos. Espera unos minutos."
+  over_email_send_rate_limit:"Se enviaron muchos correos. Espera unos minutos.", over_request_rate_limit:"Demasiados intentos. Espera unos minutos.",
+  same_password:"La contraseña nueva debe ser distinta a la anterior."
 };
 const offlineErr = () => Object.assign(new Error("Sin conexión a internet."), { offline:true });
-async function authCall(path, body, token){
+async function authCall(path, body, token, method = "POST"){
   let res;
-  try { res = await fetch(`${SB_URL}/auth/v1/${path}`, { method:"POST", headers:{ apikey:SB_KEY, "Content-Type":"application/json", ...(token ? { Authorization:"Bearer " + token } : {}) }, body: JSON.stringify(body || {}) }); }
+  try { res = await fetch(`${SB_URL}/auth/v1/${path}`, { method, headers:{ apikey:SB_KEY, "Content-Type":"application/json", ...(token ? { Authorization:"Bearer " + token } : {}) }, ...(method === "GET" ? {} : { body: JSON.stringify(body || {}) }) }); }
   catch { throw offlineErr(); }
   const j = await res.json().catch(() => ({}));
   if (!res.ok){ const code = j.error_code || j.code || j.error; throw Object.assign(new Error(AUTH_ERR[code] || j.msg || j.error_description || "No se pudo conectar con tu cuenta."), { status: res.status, code }); }
@@ -712,11 +713,65 @@ function cloudSheet(mode = "login"){
   openSheet(up ? "Crear cuenta" : "Iniciar sesión", `<div class="stack">
     <p class="small muted" style="margin:0">${up ? "Con una cuenta, tus datos se respaldan solos y puedes usar la app en otro teléfono o en el computador." : "Entra con el correo y la contraseña de tu cuenta de YouWallet."}</p>
     <label class="f">Correo<input class="inp" id="cl-email" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false"></label>
-    <label class="f">Contraseña<input class="inp" id="cl-pass" type="password" autocomplete="${up ? "new-password" : "current-password"}"></label>
+    ${passField("cl-pass", "Contraseña", up ? "new-password" : "current-password")}
     <button class="btn primary block" data-act="cl-go" data-mode="${mode}">${up ? "Crear cuenta" : "Entrar"}</button>
+    ${up ? "" : `<button class="btn block" data-act="cloud-forgot">Olvidé mi contraseña</button>`}
     <button class="btn block" data-act="cloud-${up ? "login" : "signup"}">${up ? "Ya tengo cuenta" : "Crear una cuenta nueva"}</button>
     <p class="small muted" id="clMsg" role="status" style="margin:0"></p>
   </div>`);
+}
+const passField = (id, label, ac) => `<label class="f">${label}<span class="row" style="gap:8px"><input class="inp" style="flex:1;min-width:0" id="${id}" type="password" autocomplete="${ac}" autocapitalize="off" spellcheck="false"><button type="button" class="btn small" data-act="cl-eye" data-for="${id}" aria-pressed="false">Ver</button></span></label>`;
+function forgotSheet(){
+  const email = val("cl-email");
+  openSheet("Olvidé mi contraseña", `<div class="stack">
+    <p class="small muted" style="margin:0">Te enviamos un correo con un enlace. Ábrelo y escribe una contraseña nueva.</p>
+    <label class="f">Correo<input class="inp" id="cl-email" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" value="${esc(email)}"></label>
+    <button class="btn primary block" data-act="cl-recover">Enviarme el enlace</button>
+    <button class="btn block" data-act="cloud-login">Volver</button>
+    <p class="small muted" id="clMsg" role="status" style="margin:0"></p>
+  </div>`);
+}
+async function cloudRecover(btn){
+  const email = val("cl-email").trim().toLowerCase();
+  const say = t => { const m = document.getElementById("clMsg"); if (m) m.textContent = t; };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return say("Escribe un correo válido.");
+  btn.disabled = true; say("Enviando…");
+  try { await authCall("recover?redirect_to=" + encodeURIComponent(appUrl()), { email }); say("Listo. Si ese correo tiene cuenta, te llegó un enlace (revisa también Spam). Ábrelo para poner la contraseña nueva."); }
+  catch (e){ say(e.message); btn.disabled = false; }
+}
+/* Enlaces de los correos de Supabase: vuelven a la app con la sesión en el #hash. */
+async function authFromLink(){
+  const h = new URLSearchParams(location.hash.slice(1));
+  if (!h.get("access_token") && !h.get("error")) return;
+  history.replaceState(null, "", appUrl());
+  if (h.get("error")) return toast(h.get("error_code") === "otp_expired" ? "El enlace venció o ya se usó. Pide uno nuevo." : (h.get("error_description") || "El enlace no es válido.").replace(/\+/g, " "));
+  const r = { access_token: h.get("access_token"), refresh_token: h.get("refresh_token"), expires_at: Number(h.get("expires_at")) || 0, expires_in: Number(h.get("expires_in")) || 3600 };
+  try { r.user = await authCall("user", null, r.access_token, "GET"); } catch (e){ return toast(e.message); }
+  if (h.get("type") === "recovery"){
+    UI.recovery = r;
+    openSheet("Contraseña nueva", `<div class="stack">
+      <p class="small muted" style="margin:0">Cuenta: <b>${esc(r.user.email)}</b></p>
+      ${passField("cl-new", "Contraseña nueva", "new-password")}
+      <button class="btn primary block" data-act="cl-newpass">Guardar contraseña</button>
+      <p class="small muted" id="clMsg" role="status" style="margin:0"></p>
+    </div>`);
+    return;
+  }
+  await startSession(r);
+  toast(SYNC.error || "Correo confirmado. Sesión iniciada.");
+}
+async function cloudNewPass(btn){
+  const r = UI.recovery, pass = val("cl-new");
+  const say = t => { const m = document.getElementById("clMsg"); if (m) m.textContent = t; };
+  if (!r) return say("El enlace ya se usó. Pide uno nuevo.");
+  if (pass.length < 6) return say("La contraseña debe tener al menos 6 caracteres.");
+  btn.disabled = true; say("Guardando…");
+  try {
+    await authCall("user", { password: pass }, r.access_token, "PUT");
+    UI.recovery = null; closeSheet(); toast("Contraseña cambiada. Sincronizando…");
+    await startSession(r);
+    toast(SYNC.error || "Contraseña cambiada. Sesión iniciada.");
+  } catch (e){ say(e.message); btn.disabled = false; }
 }
 function viewCloud(){
   const s = SYNC.session;
@@ -756,6 +811,7 @@ async function boot(){
   try { if (navigator.storage && navigator.storage.persist){ S.persisted = await navigator.storage.persist(); } } catch {}
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
   queueSync(0);
+  authFromLink();
 }
 let rafPending = false;
 function schedule(){ if (rafPending) return; rafPending = true; requestAnimationFrame(() => { rafPending = false; render(); }); }
@@ -1645,6 +1701,10 @@ document.addEventListener("click", async e => {
     case "cloud-login": cloudSheet("login"); break;
     case "cloud-signup": cloudSheet("signup"); break;
     case "cl-go": cloudAuth(el.dataset.mode, el); break;
+    case "cl-eye": { const inp = document.getElementById(el.dataset.for); if (!inp) break; const show = inp.type === "password"; inp.type = show ? "text" : "password"; el.textContent = show ? "Ocultar" : "Ver"; el.setAttribute("aria-pressed", String(show)); break; }
+    case "cloud-forgot": forgotSheet(); break;
+    case "cl-recover": cloudRecover(el); break;
+    case "cl-newpass": cloudNewPass(el); break;
     case "cloud-sync": runSync(); render(); break;
     case "cloud-logout": arm(el, cloudLogout); break;
     case "pin": pinInput(el.dataset.d); break;
