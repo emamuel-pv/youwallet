@@ -1,7 +1,7 @@
 // YouWallet: modo sin conexión.
 // La app primero intenta la red (para recibir actualizaciones) y, si no hay internet, usa la copia guardada.
 // Tus datos NO pasan por aquí: viven en IndexedDB del teléfono.
-const CACHE = "youwallet-v3";
+const CACHE = "youwallet-v4";
 const SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./apple-touch-icon.png"];
 
 self.addEventListener("install", e => {

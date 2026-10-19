@@ -172,6 +172,27 @@ tr:last-child td{border-bottom:0}
 .composer{display:flex;gap:8px;align-items:flex-end}
 .composer textarea{min-height:46px;max-height:140px}
 
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.clip{position:relative;overflow:hidden;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px 12px 18px;display:flex;flex-direction:column;gap:10px}
+.clip::before{content:"";position:absolute;inset:0 auto 0 0;width:5px;background:var(--warn)}
+.clip[data-estado="En edición"]::before{background:var(--accent)}
+.clip[data-estado="Entregado"]::before{background:var(--pos)}
+.clip[data-estado="Entregado"][data-pagado="false"]::before{background:var(--neg)}
+.clip .name{font-weight:600;overflow-wrap:anywhere}
+.clip .who{font-size:12px;color:var(--muted)}
+.clip .nota{font-size:13px;color:var(--muted);font-style:italic}
+.sel{font:600 13px var(--f-body);padding:6px 10px;border-radius:999px;border:1px solid transparent;font-size:16px}
+.sel.s-Pendiente{background:var(--warn-soft);color:var(--warn)}
+.sel.s-edicion{background:var(--accent-soft);color:var(--accent)}
+.sel.s-Entregado{background:var(--pos-soft);color:var(--pos)}
+.track{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:4px;height:10px}
+.track i{border-radius:3px;background:var(--surface-2);border:1px solid var(--line)}
+.track i.d{background:var(--pos);border-color:var(--pos)}
+.track i.w{background:var(--accent-soft);border-color:var(--accent)}
+.todo{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 12px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.todo .n{font:600 13px var(--f-num);color:var(--warn);background:var(--warn-soft);border-radius:8px;width:28px;height:28px;display:grid;place-items:center;grid-row:span 3}
+.todo .rs{font-size:14px;color:var(--muted);white-space:pre-wrap;overflow-wrap:anywhere}
+.notas{font-size:14px;background:var(--surface-2);border-radius:10px;padding:10px 12px;white-space:pre-wrap}
 .center{min-height:70vh;display:flex;flex-direction:column;justify-content:center;gap:14px}
 .pinpad{display:grid;grid-template-columns:repeat(3,72px);gap:12px;justify-content:center}
 .pinpad button{height:64px;border-radius:18px;border:1px solid var(--line);background:var(--surface);font-family:var(--f-num);font-size:22px;font-weight:600}
@@ -243,13 +264,14 @@ const ICON = {
   plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
   back:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>',
   close:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+  users:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.8c1.9.7 3.1 2.4 3.5 5.2"/></svg>',
   lock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>'
 };
 
 /* ============ estado ============ */
-const COLLS = ["accounts","txns","cats","budgets","goals","debts","bills"];
-const S = { ready:false, settings:null, accounts:[], txns:[], cats:[], budgets:[], goals:[], debts:[], bills:[], lastSync:null };
-const UI = { tab:"inicio", plan:"presupuestos", settings:null, f:{ q:"", type:"", acc:"", cat:"", month:"" }, locked:false, unlocked:false, chat:[], aiBusy:false, aiCtl:null, pin:"" };
+const COLLS = ["accounts","txns","cats","budgets","goals","debts","bills","videos","proyectos"];
+const S = { ready:false, settings:null, accounts:[], txns:[], cats:[], budgets:[], goals:[], debts:[], bills:[], videos:[], proyectos:[], lastSync:null };
+const UI = { tab:"inicio", plan:"presupuestos", settings:null, f:{ q:"", type:"", acc:"", cat:"", month:"" }, locked:false, unlocked:false, cli:{ filtro:"Todos", open:{} }, chat:[], aiBusy:false, aiCtl:null, pin:"" };
 
 const accById = id => S.accounts.find(a => a.id === id);
 const catById = id => S.cats.find(c => c.id === id);
@@ -527,15 +549,16 @@ function render(){
   else if (UI.tab === "plan") body = viewPlan();
   else if (UI.tab === "agenda") body = viewAgenda();
   else if (UI.tab === "ia") body = viewAI();
+  else if (UI.tab === "clientes") body = viewClients();
   app.innerHTML = body;
   wireAmounts(app);
   if (focusId){ const el = document.getElementById(focusId); if (el){ el.focus(); try { if (selStart != null) el.setSelectionRange(selStart, selStart); } catch {} } }
-  const tabs = [["inicio","Inicio",ICON.home],["movs","Movimientos",ICON.list],["plan","Planear",ICON.target],["agenda","Agenda",ICON.cal],["ia","Asistente",ICON.spark]];
+  const tabs = [["inicio","Inicio",ICON.home],["movs","Movimientos",ICON.list],["plan","Planear",ICON.target],["agenda","Agenda",ICON.cal],["clientes","Clientes",ICON.users]];
   nav.innerHTML = `<nav class="tabs" aria-label="Secciones"><div class="in">${tabs.map(([k,l,i]) => `<button data-act="tab" data-tab="${k}" ${!UI.settings && UI.tab === k ? 'aria-current="page"' : ""}>${i}<span>${l}</span></button>`).join("")}</div></nav>` +
-    (UI.tab === "ia" && !UI.settings ? "" : `<button class="fab" data-act="new-txn" aria-label="Registrar movimiento">${ICON.plus}</button>`);
+    (UI.tab === "ia" && !UI.settings ? "" : UI.tab === "clientes" && !UI.settings ? `<button class="fab" data-act="cv-new" aria-label="Agregar video">${ICON.plus}</button>` : `<button class="fab" data-act="new-txn" aria-label="Registrar movimiento">${ICON.plus}</button>`);
 }
 function header(title, eyebrow, back){
-  return `<header class="top">${back ? `<button class="iconbtn" data-act="${back}" aria-label="Volver">${ICON.back}</button>` : ""}<div class="brand grow">${eyebrow ? `<span class="eyebrow">${esc(eyebrow)}</span>` : ""}<h1>${esc(title)}</h1></div>${back ? "" : `<button class="iconbtn" data-act="settings" aria-label="Ajustes">${ICON.gear}</button>`}</header>`;
+  return `<header class="top">${back ? `<button class="iconbtn" data-act="${back}" aria-label="Volver">${ICON.back}</button>` : ""}<div class="brand grow">${eyebrow ? `<span class="eyebrow">${esc(eyebrow)}</span>` : ""}<h1>${esc(title)}</h1></div>${back ? "" : `<div class="row" style="gap:8px"><button class="iconbtn" data-act="tab" data-tab="ia" aria-label="Asistente"${UI.tab === "ia" ? ' style="color:var(--accent);border-color:var(--accent)"' : ""}>${ICON.spark}</button><button class="iconbtn" data-act="settings" aria-label="Ajustes">${ICON.gear}</button></div>`}</header>`;
 }
 
 /* ---------- onboarding ---------- */
@@ -619,6 +642,7 @@ function viewHome(){
     ${alerts.length ? `<div class="stack" style="gap:8px">${alerts.map(a => `<div class="alert ${a.level}"><div>${a.html}</div></div>`).join("")}</div>` : ""}
     <div class="section-h"><h2>Cuentas</h2><div class="row"><button class="link" data-act="new-transfer">Transferir</button><button class="link" data-act="open-settings" data-s="cuentas">Editar</button></div></div>
     ${accs.length ? `<div class="list">${accs.map(a => { const b = accBalance(a); const isC = a.type === "credito"; return `<button class="item" data-act="acc-movs" data-id="${a.id}"><div class="dot">${esc(a.name.slice(0,1).toUpperCase())}</div><div class="grow"><div class="t">${esc(a.name)}</div><div class="s">${ACC_TYPES[a.type] || ""}${isC && a.limit ? ` · cupo libre ${shortMoney(Number(a.limit) + b)}` : ""}</div></div><div class="amt ${b < 0 ? "neg" : ""}">${isC ? (b < 0 ? "Debes " + money(-b) : money(b)) : money(b)}</div></button>`; }).join("")}<div class="item"><div class="grow t">Saldo total (sin tarjetas)</div><div class="amt">${money(t.disponible)}</div></div></div>` : `<div class="card flat empty">Aún no tienes cuentas. <button class="link" data-act="new-account">Crear una cuenta</button></div>`}
+    ${S.videos.length ? (() => { const cs = cliStats(); return `<button class="card row" style="text-align:left;width:100%" data-act="tab" data-tab="clientes"><div class="grow"><div class="eyebrow">Clientes</div><div class="small" style="margin-top:2px">${cs.debo ? `Debes <b>${cs.debo} video${cs.debo === 1 ? "" : "s"}</b>` : "Al día con los videos"}${cs.sinPrecio ? ` · ${cs.sinPrecio} sin precio` : ""}</div></div><div style="text-align:right"><div class="small muted">Te deben</div><div class="num ${cs.deben ? "neg" : ""}" style="font-weight:600">${money(cs.deben)}</div></div></button>`; })() : ""}
     ${up.length ? `<div class="section-h"><h2>Próximos pagos</h2><button class="link" data-act="tab" data-tab="agenda">Agenda</button></div><div class="list">${up.map(eventRow).join("")}</div>` : ""}
     <div class="section-h"><h2>Últimos 6 meses</h2><div class="legend"><span><i style="background:var(--accent)"></i>Ingresos</span><span><i style="background:var(--spend)"></i>Gastos</span></div></div>
     <div class="card">${chartMonths()}</div>
@@ -1021,6 +1045,7 @@ function aiContext(){
     metas: S.goals.map(g => { const s = goalStats(g); return { nombre:g.name, objetivo:s.target, ahorrado:s.saved, fechaLimite:g.deadline || null, aporteMensualPlan:g.plan || null }; }),
     deudas: [...S.debts.map(d => ({ nombre:d.name, direccion:d.dir === "medeben" ? "me deben" : "debo", saldo:Math.round(debtBalance(d)), tasaEA:d.rateEA || null, cuota:d.minPayment || null })), ...activeAccounts().filter(a => a.type === "credito").map(a => ({ nombre:a.name, tipo:"tarjeta", saldo:Math.round(Math.max(0,-accBalance(a))), tasaEA:a.rateEA || null, cuota:a.minPayment || null }))],
     programado30dias: events(today(), addDays(today(), 30)).filter(e => !e.paid && !e.info).map(e => [e.date, e.name, Math.round(e.amount)]),
+    clientesEdicion: { ...cliStats(), porCliente: cliLedger(), videosPendientes: S.videos.filter(v => v.estado !== "Entregado").map(v => [v.cliente, v.video, v.estado]) },
     posiblesRecurrentes: recurrentes,
     movimientosRecientes: movs
   });
@@ -1034,6 +1059,151 @@ async function aiAsk(q){
   try { await navigator.clipboard.writeText(text); toast("Copiado. Pégalo en Claude."); if (out) out.innerHTML = `<div class="alert info"><div>Listo: la pregunta y tus datos están copiados. Toca <b>Abrir Claude</b> y pega.</div></div>`; }
   catch { if (out){ out.innerHTML = `<label class="f">No se pudo copiar solo. Selecciona y copia este texto<textarea class="inp num" id="ai-text" style="min-height:200px;font-size:12px" readonly>${esc(text)}</textarea></label>`; const ta = document.getElementById("ai-text"); ta.focus(); ta.select(); } }
 }
+/* ---------- clientes (videos y cobros) ---------- */
+const V_ESTADOS = ["Pendiente","En edición","Entregado"];
+const V_ORDEN = { "Pendiente":0, "En edición":1, "Entregado":2 };
+const vNum = x => (x === null || x === undefined || x === "" || Number.isNaN(Number(x))) ? null : Number(x);
+function cliStats(){
+  const v = S.videos;
+  return {
+    debo: v.filter(x => x.estado !== "Entregado").length,
+    deben: v.filter(x => x.estado === "Entregado" && !x.pagado).reduce((s,x) => s + (vNum(x.precio) || 0), 0),
+    cobrado: v.filter(x => x.pagado).reduce((s,x) => s + (vNum(x.precio) || 0), 0),
+    sinPrecio: v.filter(x => vNum(x.precio) === null).length
+  };
+}
+function cliLedger(){
+  const m = new Map();
+  for (const v of S.videos){ const c = m.get(v.cliente) || { cliente:v.cliente, pend:0, deben:0, entregados:0 }; if (v.estado === "Entregado"){ c.entregados++; if (!v.pagado) c.deben += vNum(v.precio) || 0; } else c.pend++; m.set(v.cliente, c); }
+  return [...m.values()].sort((a,b) => b.deben - a.deben || b.pend - a.pend || String(a.cliente).localeCompare(String(b.cliente), "es"));
+}
+function proyAvance(p){
+  const vs = S.videos.filter(v => v.proyecto === p.id);
+  const hechos = vs.filter(v => v.estado === "Entregado").length, enCurso = vs.length - hechos;
+  const total = Math.max(vNum(p.total) || 0, vs.length);
+  return { hechos, enCurso, total, faltan: Math.max(total - hechos, 0) };
+}
+function cobroMsg(cliente){
+  const deuda = S.videos.filter(v => v.cliente === cliente && v.estado === "Entregado" && !v.pagado).sort((a,b) => String(a.creado || "").localeCompare(String(b.creado || "")));
+  if (!deuda.length) return null;
+  const items = deuda.map(v => `${v.video} a ${vNum(v.precio) === null ? "precio por definir" : money(vNum(v.precio))}`);
+  const lista = items.length === 1 ? items[0] : items.slice(0,-1).join(", ") + " y " + items[items.length-1];
+  const total = deuda.reduce((s,v) => s + (vNum(v.precio) || 0), 0), n = deuda.length;
+  return { n, total, texto:`Hola ${cliente}, hasta el momento me debes ${n} ${n === 1 ? "video" : "videos"}: ${lista}. Total: ${money(total)}.` };
+}
+function viewClients(){
+  const st = cliStats(), led = cliLedger(), f = UI.cli.filtro;
+  const names = ["Todos", ...led.map(c => c.cliente).sort((a,b) => String(a).localeCompare(String(b), "es"))];
+  if (!names.includes(f)) UI.cli.filtro = "Todos";
+  const filtro = UI.cli.filtro;
+  const m = filtro !== "Todos" ? cobroMsg(filtro) : null;
+  const vids = S.videos.filter(v => filtro === "Todos" || v.cliente === filtro).sort((a,b) => {
+    const ka = a.estado === "Entregado" && !a.pagado ? -1 : V_ORDEN[a.estado] ?? 9, kb = b.estado === "Entregado" && !b.pagado ? -1 : V_ORDEN[b.estado] ?? 9;
+    return ka - kb || String(a.creado || "").localeCompare(String(b.creado || ""));
+  });
+  const ps = S.proyectos.filter(p => filtro === "Todos" || p.cliente === filtro).sort((a,b) => (a.estado === "Terminado") - (b.estado === "Terminado") || String(a.creado || "").localeCompare(String(b.creado || "")));
+  return header("Clientes", "Edición de video · cobros") + `<div class="stack">
+    <div class="kpis" style="grid-template-columns:1fr 1fr">
+      <div class="kpi" ${st.deben > 0 ? 'style="background:var(--neg-soft);border-color:transparent"' : ""}><div class="eyebrow">Me deben</div><div class="v ${st.deben > 0 ? "neg" : ""}">${money(st.deben)}</div><div class="small muted">Entregados sin pagar</div></div>
+      <div class="kpi"><div class="eyebrow">Videos que debo</div><div class="v">${st.debo}</div><div class="small muted">Pendientes o en edición</div></div>
+      <div class="kpi"><div class="eyebrow">Cobrado</div><div class="v pos">${money(st.cobrado)}</div><div class="small muted">Videos ya pagados</div></div>
+      <div class="kpi"><div class="eyebrow">Sin precio</div><div class="v ${st.sinPrecio ? "warn" : ""}">${st.sinPrecio}</div><div class="small muted">Falta definir tarifa</div></div>
+    </div>
+    ${led.length ? `<div class="section-h"><h2>Saldo por cliente</h2></div><div class="list">${led.map(c => `<button class="item" data-act="cli-filter" data-v="${esc(c.cliente)}"><div class="grow"><div class="t">${esc(c.cliente)}</div><div class="s">${c.entregados} entregado${c.entregados === 1 ? "" : "s"} · ${c.pend ? `debo ${c.pend}` : "al día"}</div></div><div class="amt ${c.deben > 0 ? "neg" : ""}">${money(c.deben)}</div></button>`).join("")}</div>` : ""}
+    <div class="chips" role="group" aria-label="Filtrar por cliente">${names.map(n => `<button class="chip" data-act="cli-filter" data-v="${esc(n)}" aria-pressed="${n === filtro}">${esc(n)}</button>`).join("")}</div>
+    ${filtro !== "Todos" ? `<div class="card stack" style="gap:8px"><div class="row between wrap"><div class="small muted">${m ? `${m.n} ${m.n === 1 ? "video" : "videos"} por cobrar · <b class="num" style="color:var(--ink)">${money(m.total)}</b>` : "Este cliente no te debe nada por ahora."}</div><button class="btn small primary" data-act="cli-cobro" ${m ? "" : "disabled"}>Copiar mensaje de cobro</button></div><div id="cobroOut"></div></div>` : ""}
+    <div class="section-h"><h2>${filtro === "Todos" ? "Proyectos" : "Proyectos de " + esc(filtro)}</h2><button class="link" data-act="cp-new">+ Nuevo</button></div>
+    ${ps.length ? ps.map(proyCard).join("") : `<div class="card flat empty">Sin proyectos. Crea uno para agrupar varios videos y ver cuántos faltan.</div>`}
+    <div class="section-h"><h2>Videos</h2><button class="link" data-act="cv-new">+ Agregar</button></div>
+    ${vids.length ? `<div class="stack" style="gap:10px">${vids.map(videoCard).join("")}</div>` : `<div class="card flat empty">No hay videos aquí. Toca <b>+</b> para agregar uno.</div>`}
+  </div>`;
+}
+function videoCard(v){
+  const pr = v.proyecto && S.proyectos.find(p => p.id === v.proyecto);
+  const precio = vNum(v.precio);
+  return `<article class="clip" data-estado="${esc(v.estado)}" data-pagado="${!!v.pagado}">
+    <div><div class="name">${esc(v.video)}</div><div class="who">${esc(v.cliente)}${pr ? ` · <span class="pill info">${esc(pr.nombre)}</span>` : ""}</div></div>
+    ${v.nota ? `<div class="nota">${esc(v.nota)}</div>` : ""}
+    <div class="row wrap" style="gap:8px">
+      <select class="sel ${v.estado === "En edición" ? "s-edicion" : "s-" + esc(v.estado)}" id="vest-${esc(v.id)}" data-vid="${esc(v.id)}" aria-label="Estado de ${esc(v.video)}">${V_ESTADOS.map(e => `<option ${e === v.estado ? "selected" : ""}>${e}</option>`).join("")}</select>
+      <button class="pill ${precio === null ? "warn" : ""}" style="padding:7px 10px;font-size:13px" data-act="cv-edit" data-id="${esc(v.id)}">${precio === null ? "PRECIO PENDIENTE" : `<span class="num">${money(precio)}</span>`}</button>
+      <button class="btn small ${v.pagado ? "" : v.estado === "Entregado" ? "danger" : ""}" ${v.pagado ? 'style="background:var(--pos);border-color:var(--pos);color:var(--surface)"' : ""} data-act="cv-pay" data-id="${esc(v.id)}">${v.pagado ? "Pagado ✓" : "Sin pagar"}</button>
+      <span class="grow"></span><button class="btn small" data-act="cv-edit" data-id="${esc(v.id)}">Editar</button>
+    </div>
+  </article>`;
+}
+function proyCard(p){
+  const a = proyAvance(p), done = p.estado === "Terminado", open = !!UI.cli.open[p.id];
+  const tareas = Array.isArray(p.tareas) ? p.tareas : [];
+  const pend = tareas.filter(t => !t.hecho), hechosT = tareas.filter(t => t.hecho);
+  const entregados = S.videos.filter(v => v.proyecto === p.id && v.estado === "Entregado");
+  let track = ""; for (let i = 0; i < a.total; i++) track += `<i class="${i < a.hechos ? "d" : i < a.hechos + a.enCurso ? "w" : ""}"></i>`;
+  return `<article class="card stack" style="gap:10px${done ? ";opacity:.7" : ""}">
+    <button class="stack" style="all:unset;display:flex;flex-direction:column;gap:10px;cursor:pointer" data-act="cp-toggle" data-id="${esc(p.id)}" aria-expanded="${open}">
+      <div class="row between"><h3 class="grow">${esc(p.nombre)}</h3><span class="small muted">${UI.cli.filtro === "Todos" ? esc(p.cliente) : done ? "Terminado" : "Activo"}</span></div>
+      <div class="track" aria-hidden="true">${track}</div>
+      <div class="small muted"><b style="color:var(--ink)">${a.hechos} de ${a.total}</b> entregados${a.enCurso ? ` · ${a.enCurso} en curso` : ""}${a.faltan ? ` · faltan ${a.faltan}` : " · completo"}</div>
+      <span class="small" style="color:var(--accent);font-weight:600">${open ? "Ocultar resumen ▴" : "Ver qué falta por hacer ▾"}</span>
+    </button>
+    ${open ? `<div class="stack" style="gap:12px;padding-top:10px;border-top:1px dashed var(--line)">
+      <div class="stack" style="gap:6px"><span class="eyebrow">Qué tener en cuenta</span><div class="notas">${esc(p.notas || "Sin indicaciones todavía.")}</div><div><button class="btn small" data-act="cp-notas" data-id="${esc(p.id)}">Editar indicaciones</button></div></div>
+      <div class="stack" style="gap:8px"><span class="eyebrow">Por hacer (${pend.length})</span>
+        ${pend.map((t,i) => `<div class="todo"><div class="n">${i+1}</div><div style="font-weight:600;overflow-wrap:anywhere">${esc(t.titulo)}</div><div class="rs">${esc(t.resumen || "Sin resumen todavía.")}</div><div class="row wrap" style="gap:6px;margin-top:4px"><button class="btn small" data-act="ct-edit" data-id="${esc(p.id)}" data-t="${esc(t.id)}">Editar</button><button class="btn small" style="color:var(--pos)" data-act="ct-done" data-id="${esc(p.id)}" data-t="${esc(t.id)}">Marcar hecho</button><button class="btn small" data-act="ct-del" data-id="${esc(p.id)}" data-t="${esc(t.id)}">Quitar</button></div></div>`).join("") || `<div class="small muted">Nada pendiente en este proyecto.</div>`}
+        <div><button class="btn small" data-act="ct-edit" data-id="${esc(p.id)}">+ Agregar pendiente</button></div>
+      </div>
+      ${hechosT.length || entregados.length ? `<div class="stack" style="gap:6px"><span class="eyebrow">Listo</span>${hechosT.map(t => `<div class="row small"><span class="pos" style="font-weight:700">✓</span><span class="grow">${esc(t.titulo)}</span><button class="btn small" data-act="ct-undo" data-id="${esc(p.id)}" data-t="${esc(t.id)}">Deshacer</button></div>`).join("")}${entregados.filter(v => !hechosT.some(t => t.video === v.id)).map(v => `<div class="row small"><span class="pos" style="font-weight:700">✓</span><span>${esc(v.video)} (entregado)</span></div>`).join("")}</div>` : ""}
+    </div>` : ""}
+    <div class="row wrap" style="gap:8px"><button class="btn small" data-act="cp-edit" data-id="${esc(p.id)}">Editar</button><button class="btn small" data-act="cp-state" data-id="${esc(p.id)}">${done ? "Reabrir" : "Marcar terminado"}</button></div>
+  </article>`;
+}
+function clientOptions(sel){ return [...new Set(S.videos.map(v => v.cliente).concat(S.proyectos.map(p => p.cliente)))].filter(Boolean).sort().map(c => `<option value="${esc(c)}">`).join(""); }
+function videoForm(v = {}){
+  const precio = vNum(v.precio);
+  openSheet(v.id ? "Editar video" : "Nuevo video", `<div class="stack">
+    <label class="f">Cliente<input class="inp" id="cv-cli" list="cv-dl" autocomplete="off" value="${esc(v.cliente ?? (UI.cli.filtro !== "Todos" ? UI.cli.filtro : ""))}" placeholder="Ej. DMT Mentoring"></label><datalist id="cv-dl">${clientOptions()}</datalist>
+    <label class="f">Video<input class="inp" id="cv-vid" autocomplete="off" value="${esc(v.video || "")}" placeholder="Ej. Reel de lanzamiento"></label>
+    <div class="grid2">
+      <label class="f">Precio (vacío = pendiente)<input class="inp amt num" id="cv-precio" inputmode="numeric" value="${precio !== null ? dots(precio) : ""}" placeholder="Sin definir"></label>
+      <label class="f">Estado<select class="inp" id="cv-estado">${V_ESTADOS.map(e => `<option ${e === (v.estado || "Pendiente") ? "selected" : ""}>${e}</option>`).join("")}</select></label>
+    </div>
+    <label class="f">Proyecto<select class="inp" id="cv-proy"><option value="">Ninguno</option>${S.proyectos.map(p => `<option value="${esc(p.id)}" ${p.id === v.proyecto ? "selected" : ""}>${esc(p.nombre)} · ${esc(p.cliente)}</option>`).join("")}</select></label>
+    <label class="f">Nota<input class="inp" id="cv-nota" autocomplete="off" value="${esc(v.nota || "")}" placeholder="Opcional"></label>
+    <button class="btn primary block" data-act="cv-save" data-id="${esc(v.id || "")}">Guardar video</button>
+    ${v.id ? `<button class="btn danger block" data-act="cv-del" data-id="${esc(v.id)}">Borrar video</button>` : ""}
+  </div>`);
+}
+function proyForm(p = {}){
+  openSheet(p.id ? "Editar proyecto" : "Nuevo proyecto", `<div class="stack">
+    <label class="f">Nombre del proyecto<input class="inp" id="cp-nombre" autocomplete="off" value="${esc(p.nombre || "")}"></label>
+    <div class="grid2"><label class="f">Cliente<input class="inp" id="cp-cli" list="cp-dl" autocomplete="off" value="${esc(p.cliente ?? (UI.cli.filtro !== "Todos" ? UI.cli.filtro : ""))}"></label><datalist id="cp-dl">${clientOptions()}</datalist>
+    <label class="f">Total de videos<input class="inp num" id="cp-total" inputmode="numeric" value="${esc(p.total ?? "")}"></label></div>
+    <button class="btn primary block" data-act="cp-save" data-id="${esc(p.id || "")}">${p.id ? "Guardar cambios" : "Crear proyecto"}</button>
+    ${p.id ? `<button class="btn danger block" data-act="cp-del" data-id="${esc(p.id)}">Borrar proyecto</button><p class="muted small">Los videos del proyecto no se borran; solo quedan sin proyecto.</p>` : ""}
+  </div>`);
+}
+function tareaForm(p, t = {}){
+  openSheet(t.id ? "Editar pendiente" : "Nuevo pendiente", `<div class="stack">
+    <label class="f">Título<input class="inp" id="ct-titulo" autocomplete="off" value="${esc(t.titulo || "")}" placeholder="Ej. Quiz: ¿Pides comida en inglés?"></label>
+    <label class="f">Resumen<textarea class="inp" id="ct-resumen" rows="6" placeholder="Qué tiene que tener este video">${esc(t.resumen || "")}</textarea></label>
+    <button class="btn primary block" data-act="ct-save" data-id="${esc(p.id)}" data-t="${esc(t.id || "")}">Guardar</button>
+  </div>`);
+}
+async function videoPaySheet(v){
+  const precio = vNum(v.precio) || 0;
+  if (v.pagado){ return safe(() => put("videos", { ...v, pagado:false }), "Marcado sin pagar"); }
+  if (!precio) return safe(() => put("videos", { ...v, pagado:true }), "Marcado como pagado");
+  const cat = S.cats.find(c => c.kind === "ingreso" && /freelance|servicio/i.test(c.name));
+  openSheet("Pago recibido", `<div class="stack">
+    <p style="margin:0"><b>${esc(v.cliente)}</b> te pagó <b class="num">${money(precio)}</b> por "${esc(v.video)}".</p>
+    <p class="muted small" style="margin:0">Puedo registrarlo también como ingreso en tus finanzas.</p>
+    <div class="grid2"><label class="f">Cuenta<select class="inp" id="vp-acc">${accOptions("", a => a.type !== "credito")}</select></label><label class="f">Fecha<input class="inp" type="date" id="vp-date" value="${today()}"></label></div>
+    <label class="f">Categoría<select class="inp" id="vp-cat">${catOptions("ingreso", cat?.id || "")}</select></label>
+    <button class="btn primary block" data-act="vp-save" data-id="${esc(v.id)}" data-mode="txn">Marcar pagado y registrar ingreso</button>
+    <button class="btn block" data-act="vp-save" data-id="${esc(v.id)}" data-mode="solo">Solo marcar pagado</button>
+  </div>`);
+}
+async function saveTareas(pid, fn){ const p = S.proyectos.find(x => x.id === pid); if (!p) return; const tareas = fn(Array.isArray(p.tareas) ? p.tareas : []); return safe(() => put("proyectos", { ...p, tareas })); }
+
 /* ---------- ajustes ---------- */
 function viewSettings(){
   const s = UI.settings;
@@ -1172,6 +1342,7 @@ document.addEventListener("change", e => {
   const map = { "mv-type":"type", "mv-month":"month", "mv-acc":"acc", "mv-cat":"cat" };
   if (map[id]){ UI.f[map[id]] = e.target.value; render(); }
   if (id === "restoreFile" && e.target.files[0]) restore(e.target.files[0]);
+  if (e.target.dataset && e.target.dataset.vid){ const v = S.videos.find(x => x.id === e.target.dataset.vid); if (v) safe(() => put("videos", { ...v, estado: e.target.value })); }
 });
 document.addEventListener("keydown", e => {
   if (e.key === "Escape" && $("#sheetRoot").innerHTML) closeSheet();
@@ -1192,6 +1363,27 @@ document.addEventListener("click", async e => {
     case "pin-back": UI.pin = UI.pin.slice(0,-1); render(); break;
     case "pin-forgot": UI.pinMsg = 'Si lo olvidaste, mantén presionado "Olvidé" 3 segundos para quitar el PIN. El bloqueo de tu iPhone sigue protegiendo tus datos.'; render(); break;
 
+    case "cli-filter": UI.cli.filtro = el.dataset.v; render(); break;
+    case "cli-cobro": { const m = cobroMsg(UI.cli.filtro); if (!m) break; const out = document.getElementById("cobroOut"); try { await navigator.clipboard.writeText(m.texto); if (out) out.innerHTML = `<div class="alert info"><div>Copiado. Pégalo en WhatsApp.</div></div>`; } catch { if (out){ out.innerHTML = `<textarea class="inp" id="cobroTxt" rows="4" readonly>${esc(m.texto)}</textarea>`; const t = document.getElementById("cobroTxt"); t.focus(); t.select(); } } break; }
+    case "cv-new": videoForm(); break;
+    case "cv-edit": videoForm(S.videos.find(v => v.id === id)); break;
+    case "cv-save": { const cliente = val("cv-cli").trim(), video = val("cv-vid").trim(); if (!cliente || !video) return toast("Escribe el cliente y el nombre del video."); const ex = id ? S.videos.find(v => v.id === id) : null; const pr = amtVal("cv-precio"); const v = { ...(ex || { pagado:false, creado:new Date().toISOString() }), cliente, video, precio: val("cv-precio").trim() ? pr : null, estado: val("cv-estado"), proyecto: val("cv-proy") || null, nota: val("cv-nota").trim() }; if (await safe(() => put("videos", v), "Video guardado")) closeSheet(); break; }
+    case "cv-del": arm(el, async () => { if (await safe(() => del("videos", id), "Video borrado")) closeSheet(); }); break;
+    case "cv-pay": { const v = S.videos.find(x => x.id === id); if (v) videoPaySheet(v); break; }
+    case "vp-save": { const v = S.videos.find(x => x.id === id); if (!v) break; const ok = await safe(async () => { if (el.dataset.mode === "txn"){ const acc = val("vp-acc"); if (!acc) throw new Error("sin cuenta"); await put("txns", { type:"ingreso", amount: vNum(v.precio), accountId: acc, catId: val("vp-cat"), date: val("vp-date") || today(), note: `${v.cliente}: ${v.video}`, createdAt: Date.now() }); } await put("videos", { ...v, pagado:true }); }, el.dataset.mode === "txn" ? "Pagado e ingreso registrado" : "Marcado como pagado"); if (ok) closeSheet(); break; }
+    case "cp-new": proyForm(); break;
+    case "cp-edit": proyForm(S.proyectos.find(p => p.id === id)); break;
+    case "cp-toggle": UI.cli.open[id] = !UI.cli.open[id]; render(); break;
+    case "cp-state": { const p = S.proyectos.find(x => x.id === id); safe(() => put("proyectos", { ...p, estado: p.estado === "Terminado" ? "Activo" : "Terminado" })); break; }
+    case "cp-save": { const nombre = val("cp-nombre").trim(), cliente = val("cp-cli").trim(), total = Math.round(Number(val("cp-total")) || 0); if (!nombre || !cliente || total < 1) return toast("Ponle nombre, cliente y cuántos videos tiene."); const ex = id ? S.proyectos.find(p => p.id === id) : null; if (await safe(() => put("proyectos", { ...(ex || { estado:"Activo", creado:new Date().toISOString(), tareas:[] }), nombre, cliente, total }), "Proyecto guardado")) closeSheet(); break; }
+    case "cp-del": arm(el, async () => { const ok = await safe(async () => { await del("proyectos", id); for (const v of S.videos.filter(v => v.proyecto === id)) await put("videos", { ...v, proyecto:null }); }, "Proyecto borrado"); if (ok) closeSheet(); }); break;
+    case "cp-notas": { const p = S.proyectos.find(x => x.id === id); openSheet("Qué tener en cuenta", `<div class="stack"><label class="f">Indicaciones del proyecto<textarea class="inp" id="cp-notas-t" rows="8">${esc(p.notas || "")}</textarea></label><button class="btn primary block" data-act="cp-notas-save" data-id="${esc(id)}">Guardar</button></div>`); break; }
+    case "cp-notas-save": { const p = S.proyectos.find(x => x.id === id); if (await safe(() => put("proyectos", { ...p, notas: val("cp-notas-t").trim() }), "Indicaciones guardadas")) closeSheet(); break; }
+    case "ct-edit": { const p = S.proyectos.find(x => x.id === id); tareaForm(p, (p.tareas || []).find(t => t.id === el.dataset.t)); break; }
+    case "ct-save": { const titulo = val("ct-titulo").trim(), resumen = val("ct-resumen").trim(), tid = el.dataset.t; if (!titulo) return toast("Ponle un título."); if (await saveTareas(id, ts => tid ? ts.map(x => x.id === tid ? { ...x, titulo, resumen } : x) : [...ts, { id:"t" + Date.now().toString(36), titulo, resumen, hecho:false }])) closeSheet(); break; }
+    case "ct-done": saveTareas(id, ts => ts.map(x => x.id === el.dataset.t ? { ...x, hecho:true } : x)); break;
+    case "ct-undo": saveTareas(id, ts => ts.map(x => x.id === el.dataset.t ? { ...x, hecho:false } : x)); break;
+    case "ct-del": arm(el, () => saveTareas(id, ts => ts.filter(x => x.id !== el.dataset.t))); break;
     case "new-txn": txnForm(); break;
     case "new-transfer": txnForm({ type:"transferencia" }); break;
     case "edit-txn": txnForm(S.txns.find(t => t.id === id)); break;
