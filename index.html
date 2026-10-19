@@ -5,43 +5,35 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>YouWallet</title>
 <meta name="description" content="Finanzas personales en pesos, guardadas solo en tu teléfono.">
-<meta name="theme-color" content="#F1F2F6" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0E1016" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#0B0B0C">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="YouWallet">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300..700&display=swap">
 <style>
-/* Layout: app de una columna (máx. 560px), cabecera fija arriba, barra de pestañas abajo, botón + flotante; formularios en hojas inferiores. */
+/* Layout: app de una columna (máx. 560px), cabecera fija arriba, barra de pestañas abajo, botón + flotante; hojas inferiores.
+   Estilo: panel oscuro "carbón" con brillo cobre (referencia del usuario). Un solo tema oscuro, a propósito. */
 :root{
-  --bg:#F1F2F6; --surface:#FFFFFF; --surface-2:#F7F8FB; --ink:#161821; --muted:#5F6577; --line:#E0E3EB;
-  --accent:#2F49D1; --accent-soft:#E6EAFB; --on-accent:#FFFFFF;
-  --pos:#0B7D57; --pos-soft:#E1F3EC; --neg:#C23A2F; --neg-soft:#FBE7E5; --warn:#9A620C; --warn-soft:#FBF0DC;
-  --spend:#9AA1B8;
-  --f-display:"Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
-  --f-body:"Figtree", -apple-system, "Segoe UI", system-ui, sans-serif;
-  --f-num:"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
-  --r:14px; --r-sm:10px;
+  --bg:#0B0B0C; --surface:#141415; --surface-2:#1C1C1E; --ink:#F3F2F0; --muted:#8E8C89; --line:#252527;
+  --accent:#DB5B14; --accent-2:#E84A45; --accent-soft:#2C1A10; --on-accent:#FFFFFF;
+  --pos:#4CC38A; --pos-soft:#13281D; --neg:#F0605A; --neg-soft:#2E1514; --warn:#F0A04B; --warn-soft:#2D2012;
+  --spend:#E84A45; --glow:rgba(219,91,20,.38);
+  --card-grad:linear-gradient(160deg,#1B1B1D 0%,#121213 55%,#0F0F10 100%);
+  --f-display:"Inter", -apple-system, "SF Pro Display", system-ui, sans-serif;
+  --f-body:"Inter", -apple-system, "SF Pro Text", system-ui, sans-serif;
+  --f-num:"Inter", -apple-system, "SF Pro Display", system-ui, sans-serif;
+  --r:20px; --r-sm:14px;
+  color-scheme:dark;
 }
-@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
-  --bg:#0E1016; --surface:#171A23; --surface-2:#1C2029; --ink:#ECEEF4; --muted:#9BA1B3; --line:#272B37;
-  --accent:#8399FF; --accent-soft:#222A49; --on-accent:#0E1016;
-  --pos:#3CC48F; --pos-soft:#14302A; --neg:#FF7E72; --neg-soft:#3A1E1D; --warn:#E8AE52; --warn-soft:#352A16;
-  --spend:#5A6176; color-scheme:dark } }
-:root[data-theme="dark"]{
-  --bg:#0E1016; --surface:#171A23; --surface-2:#1C2029; --ink:#ECEEF4; --muted:#9BA1B3; --line:#272B37;
-  --accent:#8399FF; --accent-soft:#222A49; --on-accent:#0E1016;
-  --pos:#3CC48F; --pos-soft:#14302A; --neg:#FF7E72; --neg-soft:#3A1E1D; --warn:#E8AE52; --warn-soft:#352A16;
-  --spend:#5A6176; color-scheme:dark }
 
 *{box-sizing:border-box}
-:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px)}
+:root{padding-top:env(safe-area-inset-top,0px)}
 body{margin:0}
 img{max-width:100%}
 [hidden]{display:none!important}
@@ -202,6 +194,84 @@ tr:last-child td{border-bottom:0}
 .empty{text-align:center;color:var(--muted);padding:22px 14px;font-size:14px}
 .small{font-size:12.5px}
 .hr{height:1px;background:var(--line);margin:4px 0}
+
+/* ===== estilo carbón + cobre ===== */
+body{font-feature-settings:"cv11","ss01";letter-spacing:-.005em;background:
+  radial-gradient(120% 60% at 110% -10%, rgba(219,91,20,.22), transparent 55%),
+  radial-gradient(80% 40% at -20% 0%, rgba(255,255,255,.04), transparent 60%), var(--bg);background-attachment:fixed}
+h1,h2,h3{font-variation-settings:"opsz" 32;font-weight:600;letter-spacing:-.025em}
+h1{font-size:26px} h2{font-size:17px;font-weight:500;letter-spacing:-.015em}
+.eyebrow{text-transform:none;letter-spacing:0;font-size:12.5px;font-weight:500;color:var(--muted)}
+.num{font-feature-settings:"tnum";letter-spacing:-.02em}
+header.top{background:color-mix(in srgb,var(--bg) 82%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.iconbtn{border-radius:999px;background:var(--surface-2);border-color:var(--line)}
+.card,.list,.kpi,.clip,.todo{background:var(--card-grad);border:1px solid var(--line);box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
+.card.flat{background:transparent;border-style:dashed;box-shadow:none}
+.card-h{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;color:var(--ink)}
+.card-h .ic{width:22px;height:22px;border-radius:7px;background:var(--surface-2);display:grid;place-items:center;color:var(--muted)}
+.card-h .ic svg{width:13px;height:13px}
+.hero{position:relative;overflow:hidden;color:var(--ink);border:1px solid var(--line);border-radius:24px;padding:20px;
+  background:radial-gradient(90% 120% at 100% 0%, rgba(219,91,20,.55) 0%, rgba(150,60,20,.22) 35%, transparent 70%), linear-gradient(160deg,#1A1A1C,#0F0F10)}
+.hero::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.18;mix-blend-mode:overlay;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/></filter><rect width='120' height='120' filter='url(%23n)' opacity='.6'/></svg>")}
+.hero .eyebrow{opacity:1;color:#CFCAC4}
+.hero .big{font-family:var(--f-display);font-variation-settings:"opsz" 32;font-weight:500;font-size:40px;letter-spacing:-.04em}
+.hero .big .cents{color:var(--muted);font-size:.55em;letter-spacing:-.02em}
+.hero .sub{border-top-color:rgba(255,255,255,.08)}
+.hero .sub > button > div:first-child{color:var(--muted);opacity:1}
+.kpi{border-radius:var(--r-sm);padding:12px}
+.kpi .v{font-family:var(--f-display);font-weight:500;font-size:17px;letter-spacing:-.03em;margin-top:6px}
+.kpi .spark{display:flex;align-items:flex-end;gap:2px;height:18px;margin-top:8px}
+.kpi .spark i{flex:1;border-radius:2px;background:currentColor;opacity:.9}
+.list{border-radius:var(--r)}
+.item{border-bottom-color:rgba(255,255,255,.05)}
+.dot{border-radius:999px;background:var(--surface-2);border-color:var(--line);color:var(--ink)}
+.dot.in{background:var(--pos-soft);color:var(--pos)} .dot.out{background:var(--neg-soft);color:var(--neg)} .dot.tr{background:var(--accent-soft);color:var(--accent)}
+.btn{border-radius:999px;background:var(--surface-2);border-color:var(--line)}
+.btn.primary{background:linear-gradient(180deg,#E8692A,#C9500F);border-color:transparent;color:#fff;box-shadow:0 6px 20px rgba(219,91,20,.25)}
+.btn.light{background:#F3F2F0;color:#0B0B0C;border-color:#F3F2F0}
+.btn.danger{background:transparent}
+.seg{border-radius:999px;background:var(--surface);}
+.seg button{border-radius:999px}
+.seg button[aria-pressed="true"]{background:#F3F2F0;color:#0B0B0C;box-shadow:none}
+.inp, select.inp, textarea.inp{background:var(--surface-2);border-color:var(--line);border-radius:14px}
+.inp.amount{font-family:var(--f-display);font-weight:500;letter-spacing:-.03em;font-size:30px}
+.pill{border-radius:999px}
+.alert{border-radius:16px;border:1px solid var(--line);background:var(--surface)}
+.alert.warn{background:linear-gradient(160deg,#241A10,#161210);color:#F3C38E;border-color:#3A2814}
+.alert.bad{background:linear-gradient(160deg,#2A1413,#161010);color:#F59A94;border-color:#3E1C1A}
+.alert.info{background:var(--card-grad);color:var(--ink)}
+.alert.info b{color:var(--accent)}
+.bar{background:var(--surface-2);border-color:transparent;height:7px}
+.bar>i{background:linear-gradient(90deg,#C9500F,#E8692A)}
+.bar.ok>i{background:var(--pos)} .bar.warn>i{background:var(--warn)} .bar.bad>i{background:var(--neg)}
+.stripes>i{background:repeating-linear-gradient(135deg,#E84A45 0 6px,#D23E39 6px 9px)}
+nav.tabs{background:rgba(14,14,15,.82);border-top-color:var(--line)}
+nav.tabs button[aria-current="page"]{color:var(--ink)}
+nav.tabs button[aria-current="page"] svg{color:var(--accent)}
+.fab{border-radius:999px;background:linear-gradient(180deg,#E8692A,#C9500F);box-shadow:0 10px 30px rgba(219,91,20,.4)}
+.sheet{background:#101011;border-top:1px solid var(--line)}
+.sheet-bg{background:rgba(0,0,0,.6)}
+.chip{background:var(--surface-2);border-color:var(--line)}
+.chip[aria-pressed="true"]{background:#F3F2F0;color:#0B0B0C;border-color:#F3F2F0}
+.toast{background:#F3F2F0;color:#0B0B0C}
+.msg.ai,.notas{background:var(--surface-2)}
+.pinpad button{border-radius:999px;background:var(--surface-2)}
+.pindots i.on{background:var(--accent);border-color:var(--accent)}
+.legend i{border-radius:999px}
+/* medidor de salud financiera */
+.health{display:grid;grid-template-columns:132px minmax(0,1fr);gap:14px;align-items:center}
+.health .gauge{position:relative}
+.health .gauge .sc{position:absolute;left:0;right:0;top:38%;text-align:center}
+.health .gauge .sc b{display:block;font-family:var(--f-display);font-weight:500;font-size:34px;letter-spacing:-.04em;line-height:1}
+.health .gauge .sc span{font-size:11.5px;color:var(--muted)}
+.health ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:7px;font-size:12.5px}
+.health li{display:flex;justify-content:space-between;gap:8px;color:var(--muted)}
+.health li b{color:var(--ink);font-weight:500}
+@media (max-width:360px){.health{grid-template-columns:1fr}}
+.insight{position:relative;overflow:hidden}
+.insight::before{content:"";position:absolute;right:-60px;top:-60px;width:200px;height:200px;border-radius:50%;border:28px solid rgba(255,255,255,.035)}
+.insight h3{font-size:19px;font-weight:500;margin-top:10px}
+.insight p{margin:6px 0 14px;color:var(--muted);font-size:13.5px;max-width:34ch}
 </style>
 </head>
 <body>
@@ -623,29 +693,92 @@ function viewHome(){
   const top = spendByTopCat(mf, mt).slice(0, 5);
   const topMax = top[0]?.v || 1;
   const up = events(today(), addDays(today(), 10)).filter(e => !e.paid && !e.info).slice(0, 4);
+  const prevKey = shiftMonth(curMonth(), -1), pm = monthFlows(prevKey);
+  const months6 = [5,4,3,2,1,0].map(i => monthFlows(shiftMonth(curMonth(), -i)));
+  const spark = (key, color) => { const vals = months6.map(x => Math.max(0, x[key])); const mx = Math.max(1, ...vals); return `<div class="spark" style="color:${color}" aria-hidden="true">${vals.map((v,i) => `<i style="height:${Math.max(8, v/mx*100)}%;opacity:${i === 5 ? 1 : .45}"></i>`).join("")}</div>`; };
+  const delta = (cur, prev, goodUp) => { if (!prev) return ""; const d = (cur - prev) / Math.abs(prev); const up = d >= 0; const good = goodUp ? up : !up; return `<div class="small ${good ? "pos" : "neg"}" style="margin-top:4px">${up ? "↑" : "↓"} ${Math.abs(d*100).toFixed(1).replace(".", ",")}% <span class="muted">vs ${fmtMonthShort(prevKey)}</span></div>`; };
   return header("Mis finanzas", fmtMonth(curMonth())) + `<div class="stack">
     <div class="hero">
-      <div class="eyebrow">Disponible hoy</div>
-      <div class="big">${money(t.disponible)}</div>
+      <div class="eyebrow">Saldo disponible</div>
+      <div class="big num">${money(t.disponible)}</div>
       <div class="sub">
-        <button data-act="oblig"><div style="opacity:.8">Después de obligaciones del mes</div><div class="num" style="font-weight:600;font-size:15px">${money(after)}</div></button>
-        <button data-act="goto-debts" style="text-align:right"><div style="opacity:.8">Deudas pendientes</div><div class="num" style="font-weight:600;font-size:15px">${money(t.deudas)}</div></button>
+        <button data-act="oblig"><div>Después de obligaciones</div><div class="num" style="font-weight:500;font-size:16px;margin-top:2px">${money(after)}</div></button>
+        <button data-act="goto-debts" style="text-align:right"><div>Deudas pendientes</div><div class="num" style="font-weight:500;font-size:16px;margin-top:2px">${money(t.deudas)}</div></button>
       </div>
     </div>
     <div class="kpis">
-      <div class="kpi"><div class="eyebrow">Ingresos</div><div class="v pos">${money(m.ing)}</div></div>
-      <div class="kpi"><div class="eyebrow">Gastos</div><div class="v neg">${money(m.gas)}</div></div>
-      <div class="kpi"><div class="eyebrow">Ahorro</div><div class="v ${m.ahorro < 0 ? "neg" : ""}">${money(m.ahorro)}</div>${m.tasa != null ? `<div class="small muted">${Math.round(m.tasa*100)}% de lo que entró</div>` : ""}</div>
+      <div class="kpi"><div class="eyebrow">Ingresos</div><div class="v num">${shortMoney(m.ing)}</div>${spark("ing", "var(--accent)")}${delta(m.ing, pm.ing, true)}</div>
+      <div class="kpi"><div class="eyebrow">Gastos</div><div class="v num">${shortMoney(m.gas)}</div>${spark("gas", "var(--accent-2)")}${delta(m.gas, pm.gas, false)}</div>
+      <div class="kpi"><div class="eyebrow">Ahorro</div><div class="v num ${m.ahorro < 0 ? "neg" : ""}">${shortMoney(m.ahorro)}</div>${spark("ahorro", "var(--pos)")}${m.tasa != null ? `<div class="small muted" style="margin-top:4px">${Math.round(m.tasa*100)}% de lo que entró</div>` : ""}</div>
     </div>
+    ${insightCard()}
+    ${healthCard()}
     ${alerts.length ? `<div class="stack" style="gap:8px">${alerts.map(a => `<div class="alert ${a.level}"><div>${a.html}</div></div>`).join("")}</div>` : ""}
     <div class="section-h"><h2>Cuentas</h2><div class="row"><button class="link" data-act="new-transfer">Transferir</button><button class="link" data-act="open-settings" data-s="cuentas">Editar</button></div></div>
     ${accs.length ? `<div class="list">${accs.map(a => { const b = accBalance(a); const isC = a.type === "credito"; return `<button class="item" data-act="acc-movs" data-id="${a.id}"><div class="dot">${esc(a.name.slice(0,1).toUpperCase())}</div><div class="grow"><div class="t">${esc(a.name)}</div><div class="s">${ACC_TYPES[a.type] || ""}${isC && a.limit ? ` · cupo libre ${shortMoney(Number(a.limit) + b)}` : ""}</div></div><div class="amt ${b < 0 ? "neg" : ""}">${isC ? (b < 0 ? "Debes " + money(-b) : money(b)) : money(b)}</div></button>`; }).join("")}<div class="item"><div class="grow t">Saldo total (sin tarjetas)</div><div class="amt">${money(t.disponible)}</div></div></div>` : `<div class="card flat empty">Aún no tienes cuentas. <button class="link" data-act="new-account">Crear una cuenta</button></div>`}
     ${S.videos.length ? (() => { const cs = cliStats(); return `<button class="card row" style="text-align:left;width:100%" data-act="tab" data-tab="clientes"><div class="grow"><div class="eyebrow">Clientes</div><div class="small" style="margin-top:2px">${cs.debo ? `Debes <b>${cs.debo} video${cs.debo === 1 ? "" : "s"}</b>` : "Al día con los videos"}${cs.sinPrecio ? ` · ${cs.sinPrecio} sin precio` : ""}</div></div><div style="text-align:right"><div class="small muted">Te deben</div><div class="num ${cs.deben ? "neg" : ""}" style="font-weight:600">${money(cs.deben)}</div></div></button>`; })() : ""}
     ${up.length ? `<div class="section-h"><h2>Próximos pagos</h2><button class="link" data-act="tab" data-tab="agenda">Agenda</button></div><div class="list">${up.map(eventRow).join("")}</div>` : ""}
-    <div class="section-h"><h2>Últimos 6 meses</h2><div class="legend"><span><i style="background:var(--accent)"></i>Ingresos</span><span><i style="background:var(--spend)"></i>Gastos</span></div></div>
-    <div class="card">${chartMonths()}</div>
-    <div class="section-h"><h2>En qué se va la plata</h2><span class="muted small">este mes</span></div>
-    ${top.length ? `<div class="card stack" style="gap:10px">${top.map(r => `<div><div class="row between small"><span style="font-weight:600">${esc(r.name)}</span><span class="num">${money(r.v)}</span></div><div class="bar" style="margin-top:4px"><i style="width:${Math.max(3, r.v/topMax*100)}%"></i></div></div>`).join("")}</div>` : `<div class="card flat empty">Cuando registres gastos verás aquí tus categorías más pesadas.</div>`}
+    <div class="card stack" style="gap:10px"><div class="row between"><div class="card-h"><span class="ic">${ICON.list}</span>Flujo de los últimos 6 meses</div><div class="legend"><span><i style="background:var(--accent)"></i>Ingresos</span><span><i style="background:var(--spend)"></i>Gastos</span></div></div>${chartMonths()}</div>
+    ${top.length ? `<div class="card stack" style="gap:12px"><div class="row between"><div class="card-h"><span class="ic">${ICON.target}</span>En qué se va la plata</div><span class="muted small">este mes</span></div>${top.map(r => `<div><div class="row between small"><span style="font-weight:600">${esc(r.name)}</span><span class="num">${money(r.v)}</span></div><div class="bar stripes" style="margin-top:6px;height:9px"><i style="width:${Math.max(3, r.v/topMax*100)}%"></i></div></div>`).join("")}</div>` : `<div class="card flat empty">Cuando registres gastos verás aquí tus categorías más pesadas.</div>`}
+  </div>`;
+}
+function insightCard(){
+  if (!S.txns.length) return "";
+  const td = today(), d = parseISO(td).getDate();
+  const curF = `${curMonth()}-01`, prevK = shiftMonth(curMonth(), -1);
+  const [, prevEnd] = monthRange(prevK);
+  const prevTo = `${prevK}-${pad(Math.min(d, Number(prevEnd.slice(8))))}`;
+  const cur = sumRange(curF, td, "gasto"), prev = sumRange(`${prevK}-01`, prevTo, "gasto");
+  const goBtn = `<button class="btn light small" data-act="insight-go">Ver movimientos →</button>`;
+  const head = `<div class="row between"><div class="card-h"><span class="ic">${ICON.target}</span>Resumen del mes</div><span class="pill">${esc(fmtMonthShort(curMonth()))}</span></div>`;
+  if (!prev) return `<div class="card insight">${head}<h3>Llevas ${money(cur)} en gastos</h3><p>El mes pasado no tienes registros para comparar. Sigue registrando y aquí verás cómo vas.</p>${goBtn}</div>`;
+  const ch = (cur - prev) / prev;
+  const byCat = (f, t) => { const m = {}; for (const r of spendByTopCat(f, t)) m[r.name] = r.v; return m; };
+  const a = byCat(curF, td), b = byCat(`${prevK}-01`, prevTo);
+  const diffs = Object.keys({ ...a, ...b }).map(k => ({ k, d: (a[k] || 0) - (b[k] || 0) })).sort((x, y) => ch >= 0 ? y.d - x.d : x.d - y.d);
+  const top = diffs.filter(x => ch >= 0 ? x.d > 0 : x.d < 0).slice(0, 2).map(x => x.k);
+  const pct = Math.abs(ch * 100).toFixed(1).replace(".", ",");
+  if (ch > 0.05) return `<div class="card insight">${head}<h3>Gastaste ${pct}% más</h3><p>Que a esta misma altura de ${esc(fmtMonthShort(prevK))}${top.length ? `, sobre todo por ${top.map(esc).join(" y ")}` : ""}. Revisa esos gastos para no salirte del plan.</p><button class="btn primary small" data-act="insight-go">Ver análisis →</button></div>`;
+  return `<div class="card insight">${head}<h3>Vas bien este mes</h3><p>${ch < -0.05 ? `Gastaste ${pct}% menos que a esta altura de ${esc(fmtMonthShort(prevK))}${top.length ? `, gracias a ${top.map(esc).join(" y ")}` : ""}.` : `Tus gastos van casi iguales a los de ${esc(fmtMonthShort(prevK))} a esta misma altura.`}</p>${goBtn}</div>`;
+}
+function healthScore(){
+  const m = monthFlows(curMonth()), pm = monthFlows(shiftMonth(curMonth(), -1));
+  const ref = m.ing > 0 ? m : pm;
+  const tasa = ref.ing > 0 ? (ref.ing - ref.gas) / ref.ing : 0;
+  const sAhorro = Math.max(0, Math.min(1, tasa / 0.2)) * 25;
+  const bs = S.budgets.map(budgetUse); const sPres = bs.length ? bs.filter(u => u.pct < 1).length / bs.length * 25 : 15;
+  const t = totals(); const ingAvg = Math.max(ref.ing, 1);
+  const sDeuda = t.deudas <= 0 ? 25 : Math.max(0, 1 - t.deudas / (ingAvg * 6)) * 25;
+  const gasto = avgMonthlySpend() || 1; const meses = t.disponible / gasto;
+  const sFondo = Math.max(0, Math.min(1, meses / 3)) * 25;
+  return { score: Math.round(sAhorro + sPres + sDeuda + sFondo), tasa, presOk: bs.length ? `${bs.filter(u => u.pct < 1).length}/${bs.length}` : "—", deuda: t.deudas, meses };
+}
+function healthCard(){
+  if (!S.txns.length) return "";
+  const h = healthScore();
+  const label = h.score >= 75 ? "Muy bien" : h.score >= 50 ? "Estable" : h.score >= 30 ? "Por mejorar" : "En riesgo";
+  const R = 62, cx = 75, cy = 76, start = 200, sweep = 140 * 2;
+  const pt = a => { const r = (a - 90) * Math.PI / 180; return [cx + R * Math.cos(r), cy + R * Math.sin(r)]; };
+  const arc = (a0, a1) => { const [x0, y0] = pt(a0), [x1, y1] = pt(a1); return `M${x0.toFixed(1)},${y0.toFixed(1)} A${R},${R} 0 ${a1 - a0 > 180 ? 1 : 0} 1 ${x1.toFixed(1)},${y1.toFixed(1)}`; };
+  const a0 = -125, a1 = 125, av = a0 + (a1 - a0) * h.score / 100;
+  const [mx, my] = pt(av);
+  return `<div class="card stack" style="gap:10px">
+    <div class="row between"><div class="card-h"><span class="ic">${ICON.target}</span>Salud financiera</div><span class="pill ${h.score >= 50 ? "ok" : h.score >= 30 ? "warn" : "bad"}">${label}</span></div>
+    <div class="health">
+      <div class="gauge"><svg viewBox="0 0 150 128" width="100%" role="img" aria-label="Puntaje de salud financiera ${h.score} de 100">
+        <defs><linearGradient id="gGauge" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7A2E0A"/><stop offset=".6" stop-color="#DB5B14"/><stop offset="1" stop-color="#F08A4B"/></linearGradient></defs>
+        <path d="${arc(a0, a1)}" fill="none" stroke="#232325" stroke-width="16" stroke-linecap="round"/>
+        ${h.score > 0 ? `<path d="${arc(a0, Math.max(a0 + 1, av))}" fill="none" stroke="url(#gGauge)" stroke-width="16" stroke-linecap="round"/>` : ""}
+        <circle cx="${mx.toFixed(1)}" cy="${my.toFixed(1)}" r="6" fill="#F3F2F0" stroke="#0B0B0C" stroke-width="2"/>
+      </svg><div class="sc"><b>${h.score}</b><span>de 100</span></div></div>
+      <ul>
+        <li>Ahorro del mes <b class="num">${Math.round(h.tasa * 100)}%</b></li>
+        <li>Presupuestos al día <b class="num">${h.presOk}</b></li>
+        <li>Meses cubiertos <b class="num">${h.meses.toFixed(1).replace(".", ",")}</b></li>
+        <li>Deudas <b class="num">${shortMoney(h.deuda)}</b></li>
+      </ul>
+    </div>
+    <div class="small muted">Sube ahorrando 20% de lo que entra, cumpliendo tus presupuestos y con 3 meses de gastos guardados.</div>
   </div>`;
 }
 function homeAlerts(){
@@ -669,9 +802,9 @@ function chartMonths(){
   const W = 340, H = 170, L = 44, B = 22, T = 8, cw = (W - L - 4) / 6;
   const y = v => T + (H - T - B) * (1 - v / top);
   let g = "";
-  for (let v = 0; v <= top + 1; v += step) g += `<line x1="${L}" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width="1"/><text x="${L - 6}" y="${y(v) + 3.5}" text-anchor="end" font-size="9.5" fill="var(--muted)" font-family="var(--f-num)">${shortMoney(v).replace("$","")}</text>`;
-  const bars = data.map((d, i) => { const x = L + i * cw + cw * 0.18, bw = cw * 0.3; return `<rect x="${x}" y="${y(d.ing)}" width="${bw}" height="${Math.max(0, y(0) - y(d.ing))}" rx="2" fill="var(--accent)"><title>Ingresos ${money(d.ing)}</title></rect><rect x="${x + bw + 2}" y="${y(d.gas)}" width="${bw}" height="${Math.max(0, y(0) - y(d.gas))}" rx="2" fill="var(--spend)"><title>Gastos ${money(d.gas)}</title></rect><text x="${L + i * cw + cw/2}" y="${H - 6}" text-anchor="middle" font-size="10.5" fill="${d.k === now ? "var(--ink)" : "var(--muted)"}" font-weight="${d.k === now ? 700 : 500}">${fmtMonthShort(d.k)}</text>`; }).join("");
-  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Ingresos y gastos de los últimos seis meses">${g}${bars}</svg>`;
+  for (let v = 0; v <= top + 1; v += step) g += `<line x1="${L}" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width="1" stroke-dasharray="2 4"/><text x="${L - 6}" y="${y(v) + 3.5}" text-anchor="end" font-size="9.5" fill="var(--muted)" font-family="var(--f-num)">${shortMoney(v).replace("$","")}</text>`;
+  const bars = data.map((d, i) => { const x = L + i * cw + cw * 0.18, bw = cw * 0.3; return `<rect x="${x}" y="${y(d.ing)}" width="${bw}" height="${Math.max(0, y(0) - y(d.ing))}" rx="3" fill="url(#gIng)"><title>Ingresos ${money(d.ing)}</title></rect><rect x="${x + bw + 2}" y="${y(d.gas)}" width="${bw}" height="${Math.max(0, y(0) - y(d.gas))}" rx="3" fill="url(#gGas)"><title>Gastos ${money(d.gas)}</title></rect><text x="${L + i * cw + cw/2}" y="${H - 6}" text-anchor="middle" font-size="10.5" fill="${d.k === now ? "var(--ink)" : "var(--muted)"}" font-weight="${d.k === now ? 700 : 500}">${fmtMonthShort(d.k)}</text>`; }).join("");
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Ingresos y gastos de los últimos seis meses"><defs><linearGradient id="gIng" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#EE7A3A"/><stop offset="1" stop-color="#B9480D"/></linearGradient><pattern id="gGas" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="#E84A45"/><rect width="2" height="6" fill="#C93A35"/></pattern></defs>${g}${bars}</svg>`;
 }
 function niceStep(x){ if (x <= 0) return 1; const p = Math.pow(10, Math.floor(Math.log10(x))); const n = x / p; return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10) * p; }
 
@@ -1317,6 +1450,7 @@ document.addEventListener("click", async e => {
     case "pin-back": UI.pin = UI.pin.slice(0,-1); render(); break;
     case "pin-forgot": UI.pinMsg = 'Si lo olvidaste, mantén presionado "Olvidé" 3 segundos para quitar el PIN. El bloqueo de tu iPhone sigue protegiendo tus datos.'; render(); break;
 
+    case "insight-go": UI.f = { q:"", type:"gasto", acc:"", cat:"", month: curMonth() }; UI.tab = "movs"; render(); window.scrollTo(0,0); break;
     case "cli-filter": UI.cli.filtro = el.dataset.v; render(); break;
     case "cli-cobro": { const m = cobroMsg(UI.cli.filtro); if (!m) break; const out = document.getElementById("cobroOut"); try { await navigator.clipboard.writeText(m.texto); if (out) out.innerHTML = `<div class="alert info"><div>Copiado. Pégalo en WhatsApp.</div></div>`; } catch { if (out){ out.innerHTML = `<textarea class="inp" id="cobroTxt" rows="4" readonly>${esc(m.texto)}</textarea>`; const t = document.getElementById("cobroTxt"); t.focus(); t.select(); } } break; }
     case "cv-new": videoForm(); break;
