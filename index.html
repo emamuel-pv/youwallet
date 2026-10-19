@@ -153,16 +153,8 @@ th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--mute
 td:first-child,th:first-child{text-align:left}
 tr:last-child td{border-bottom:0}
 
-.chat{display:flex;flex-direction:column;gap:10px}
-.msg{padding:10px 12px;border-radius:14px;max-width:92%;font-size:14.5px;overflow-wrap:anywhere}
-.msg.me{align-self:flex-end;background:var(--accent);color:var(--on-accent);border-bottom-right-radius:4px}
-.msg.ai{align-self:flex-start;background:var(--surface);border:1px solid var(--line);border-bottom-left-radius:4px}
-.msg.ai p{margin:0 0 8px}.msg.ai p:last-child{margin:0}
-.msg.ai ul{margin:4px 0 8px;padding-left:18px}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 12px;font-size:13px;font-weight:600}
-.composer{display:flex;gap:8px;align-items:flex-end}
-.composer textarea{min-height:46px;max-height:140px}
 
 .chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 .clip{position:relative;overflow:hidden;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px 12px 18px;display:flex;flex-direction:column;gap:10px}
@@ -254,7 +246,7 @@ nav.tabs button[aria-current="page"] svg{color:var(--accent)}
 .chip{background:var(--surface-2);border-color:var(--line)}
 .chip[aria-pressed="true"]{background:#F3F2F0;color:#0B0B0C;border-color:#F3F2F0}
 .toast{background:#F3F2F0;color:#0B0B0C}
-.msg.ai,.notas{background:var(--surface-2)}
+.notas{background:var(--surface-2)}
 .pinpad button{border-radius:999px;background:var(--surface-2)}
 .pindots i.on{background:var(--accent);border-color:var(--accent)}
 .legend i{border-radius:999px}
@@ -317,7 +309,6 @@ const fmtMonth = key => new Intl.DateTimeFormat("es-CO",{month:"long",year:"nume
 const fmtMonthShort = key => new Intl.DateTimeFormat("es-CO",{month:"short"}).format(parseISO(key + "-01")).replace(".","");
 const newId = () => (crypto.randomUUID ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2))).replace(/[^A-Za-z0-9_-]/g, "");
 const byName = (a, b) => String(a.name).localeCompare(String(b.name), "es");
-const sleep = ms => new Promise(r => setTimeout(r, ms));
 const lsGet = k => { try { return localStorage.getItem(k); } catch { return null; } };
 const lsSet = (k, v) => { try { localStorage.setItem(k, v); return true; } catch { return false; } };
 
@@ -340,7 +331,7 @@ const ICON = {
 /* ============ estado ============ */
 const COLLS = ["accounts","txns","cats","budgets","goals","debts","bills","videos","proyectos"];
 const S = { ready:false, settings:null, accounts:[], txns:[], cats:[], budgets:[], goals:[], debts:[], bills:[], videos:[], proyectos:[], lastSync:null };
-const UI = { tab:"inicio", plan:"presupuestos", settings:null, f:{ q:"", type:"", acc:"", cat:"", month:"" }, locked:false, unlocked:false, cli:{ filtro:"Todos", open:{} }, chat:[], aiBusy:false, aiCtl:null, pin:"" };
+const UI = { tab:"inicio", plan:"presupuestos", settings:null, f:{ q:"", type:"", acc:"", cat:"", month:"" }, locked:false, unlocked:false, cli:{ filtro:"Todos", open:{} }, pin:"" };
 
 const accById = id => S.accounts.find(a => a.id === id);
 const catById = id => S.cats.find(c => c.id === id);
@@ -457,7 +448,8 @@ function events(from, to){
       for (const d of monthlyDayDates(a.payDay, from, to)){
         const cutBefore = a.cutDay ? monthlyDayDates(a.cutDay, addDays(d, -40), addDays(d, -1)).pop() : null;
         const winStart = cutBefore ? addDays(cutBefore, 1) : addDays(d, -25);
-        const paid = S.txns.some(t => t.type === "transferencia" && t.toAccountId === a.id && t.date <= d && t.date >= winStart);
+        const abonado = S.txns.filter(t => t.type === "transferencia" && t.toAccountId === a.id && t.date <= d && t.date >= winStart).reduce((s,t) => s + (Number(t.amount) || 0), 0);
+        const paid = abonado >= due;
         ev.push({ key:`p:${a.id}:${d}`, date:d, name:`Pago tarjeta ${a.name}`, amount:-due, src:"card", ref:a.id, paid, kind:"gasto" });
       }
     }
@@ -1386,7 +1378,7 @@ async function offerFile(filename, data, mime){
   const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 5000);
   toast("Archivo descargado"); return true;
 }
-function backupJSON(){ const o = { app:"youwallet", version:1, exportedAt:new Date().toISOString(), settings: S.settings ? (({ pin, ...r }) => r)(S.settings) : null }; for (const c of COLLS) if (c !== "devices") o[c] = S[c]; return JSON.stringify(o, null, 1); }
+function backupJSON(){ const o = { app:"youwallet", version:1, exportedAt:new Date().toISOString(), settings: S.settings ? (({ pin, ...r }) => r)(S.settings) : null }; for (const c of COLLS) o[c] = S[c]; return JSON.stringify(o, null, 1); }
 function csvTxns(){
   const q = v => `"${String(v ?? "").replace(/"/g,'""')}"`;
   const rows = [["fecha","tipo","monto","cuenta","cuenta_destino","categoria","nota"]];

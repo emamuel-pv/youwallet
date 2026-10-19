@@ -8,7 +8,7 @@ Responde siempre en español de Colombia, claro y directo.
 
 - Todo en un solo archivo: `index.html` (HTML + CSS + JS sin frameworks ni build). No agregar dependencias ni pasos de compilación.
 - Datos **solo en el teléfono**: IndexedDB (base `youwallet`, store `kv`), con localStorage como respaldo. No hay servidor, base de datos ni cuentas. Nunca subir datos personales al repo (es público).
-- `sw.js`: service worker para modo sin conexión (red primero, caché si no hay internet). **Cada vez que cambies algo, sube el número de `CACHE`** (ahora `youwallet-v6`) para que el iPhone baje la versión nueva.
+- `sw.js`: service worker para modo sin conexión (red primero, caché si no hay internet). **Cada vez que cambies algo, sube el número de `CACHE`** (ahora `youwallet-v7`) para que el iPhone baje la versión nueva.
 - `manifest.webmanifest` + íconos `icon-192.png`, `icon-512.png`, `apple-touch-icon.png` en la raíz.
 - Colecciones en el estado `S`: `accounts`, `txns`, `cats`, `budgets`, `goals`, `debts`, `bills`, `videos`, `proyectos` y `settings`. Funciones de guardado: `put(coll, obj)`, `putMany`, `del(coll, id)`, `putSettings(patch)`, `setSettings(obj)`.
 - Render: `render()` arma la vista según `UI.tab` (`inicio`, `movs`, `plan`, `agenda`, `clientes`) o `UI.settings`. Los clics se manejan con un solo listener por `data-act`. Los formularios abren en hojas inferiores con `openSheet()`.
