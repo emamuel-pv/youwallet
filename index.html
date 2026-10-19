@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>YouWallet</title>
 <meta name="description" content="Finanzas personales en pesos, guardadas solo en tu teléfono.">
 <meta name="theme-color" content="#F1F2F6" media="(prefers-color-scheme: light)">
@@ -45,7 +45,9 @@
 body{margin:0}
 img{max-width:100%}
 [hidden]{display:none!important}
-html{-webkit-text-size-adjust:100%}
+html{-webkit-text-size-adjust:100%;touch-action:manipulation}
+button,a,input,select,textarea,label{touch-action:manipulation}
+input,select,textarea{font-size:16px}
 html,body{height:100%}
 body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--bg)}
@@ -192,6 +194,11 @@ tr:last-child td{border-bottom:0}
 
 <script>
 "use strict";
+/* Sin zoom: bloquea el pellizco (iOS) y el doble toque. */
+["gesturestart","gesturechange","gestureend"].forEach(t => document.addEventListener(t, e => e.preventDefault(), { passive:false }));
+document.addEventListener("touchmove", e => { if (e.touches && e.touches.length > 1) e.preventDefault(); }, { passive:false });
+let lastTouchEnd = 0;
+document.addEventListener("touchend", e => { const now = Date.now(); if (now - lastTouchEnd < 300 && !e.target.closest("input,textarea,select")) e.preventDefault(); lastTouchEnd = now; }, { passive:false });
 /* ============ utilidades ============ */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -538,7 +545,7 @@ function viewOnboarding(){
     <span class="eyebrow">Bienvenido a YouWallet</span>
     <h1 style="font-size:30px">Tus finanzas, en pesos y en un solo lugar</h1>
     <p class="muted">Elige con qué cuentas empiezas y cuánto tienes hoy en cada una. Puedes cambiar todo después en Ajustes.</p>
-    <div class="list">${acc.map(([k,n,t,on]) => `<div class="item"><label class="check grow"><input type="checkbox" id="ob-${k}" ${on ? "checked" : ""}><span><span class="t">${n}</span><br><span class="s">${ACC_TYPES[t]}</span></span></label><input class="inp amt num" style="width:140px;font-size:15px;padding:8px 10px" inputmode="numeric" id="obv-${k}" placeholder="${t === "credito" ? "Deuda hoy" : "Saldo hoy"}" aria-label="${t === "credito" ? "Deuda actual de" : "Saldo actual de"} ${n}"></div>`).join("")}</div>
+    <div class="list">${acc.map(([k,n,t,on]) => `<div class="item"><label class="check grow"><input type="checkbox" id="ob-${k}" ${on ? "checked" : ""}><span><span class="t">${n}</span><br><span class="s">${ACC_TYPES[t]}</span></span></label><input class="inp amt num" style="width:140px;font-size:16px;padding:8px 10px" inputmode="numeric" id="obv-${k}" placeholder="${t === "credito" ? "Deuda hoy" : "Saldo hoy"}" aria-label="${t === "credito" ? "Deuda actual de" : "Saldo actual de"} ${n}"></div>`).join("")}</div>
     <label class="check"><input type="checkbox" id="ob-cats" checked> Crear categorías comunes (mercado, transporte, arriendo, servicios…)</label>
     <button class="btn primary block" data-act="onboard" id="obBtn">Empezar</button>
     <p class="muted small">Tus datos se guardan solo en este teléfono. No hay cuentas ni servidores. Haz copias de seguridad de vez en cuando desde Ajustes.</p>
