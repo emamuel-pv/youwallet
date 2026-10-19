@@ -259,7 +259,6 @@ const ICON = {
   list:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1"/><circle cx="3.5" cy="12" r="1"/><circle cx="3.5" cy="18" r="1"/></svg>',
   target:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></svg>',
   cal:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
-  spark:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 3l1.9 5.2L19 10l-5.1 1.8L12 17l-1.9-5.2L5 10l5.1-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>',
   gear:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
   plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
   back:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>',
@@ -548,17 +547,16 @@ function render(){
   else if (UI.tab === "movs") body = viewMovs();
   else if (UI.tab === "plan") body = viewPlan();
   else if (UI.tab === "agenda") body = viewAgenda();
-  else if (UI.tab === "ia") body = viewAI();
   else if (UI.tab === "clientes") body = viewClients();
   app.innerHTML = body;
   wireAmounts(app);
   if (focusId){ const el = document.getElementById(focusId); if (el){ el.focus(); try { if (selStart != null) el.setSelectionRange(selStart, selStart); } catch {} } }
   const tabs = [["inicio","Inicio",ICON.home],["movs","Movimientos",ICON.list],["plan","Planear",ICON.target],["agenda","Agenda",ICON.cal],["clientes","Clientes",ICON.users]];
   nav.innerHTML = `<nav class="tabs" aria-label="Secciones"><div class="in">${tabs.map(([k,l,i]) => `<button data-act="tab" data-tab="${k}" ${!UI.settings && UI.tab === k ? 'aria-current="page"' : ""}>${i}<span>${l}</span></button>`).join("")}</div></nav>` +
-    (UI.tab === "ia" && !UI.settings ? "" : UI.tab === "clientes" && !UI.settings ? `<button class="fab" data-act="cv-new" aria-label="Agregar video">${ICON.plus}</button>` : `<button class="fab" data-act="new-txn" aria-label="Registrar movimiento">${ICON.plus}</button>`);
+    (UI.tab === "clientes" && !UI.settings ? `<button class="fab" data-act="cv-new" aria-label="Agregar video">${ICON.plus}</button>` : `<button class="fab" data-act="new-txn" aria-label="Registrar movimiento">${ICON.plus}</button>`);
 }
 function header(title, eyebrow, back){
-  return `<header class="top">${back ? `<button class="iconbtn" data-act="${back}" aria-label="Volver">${ICON.back}</button>` : ""}<div class="brand grow">${eyebrow ? `<span class="eyebrow">${esc(eyebrow)}</span>` : ""}<h1>${esc(title)}</h1></div>${back ? "" : `<div class="row" style="gap:8px"><button class="iconbtn" data-act="tab" data-tab="ia" aria-label="Asistente"${UI.tab === "ia" ? ' style="color:var(--accent);border-color:var(--accent)"' : ""}>${ICON.spark}</button><button class="iconbtn" data-act="settings" aria-label="Ajustes">${ICON.gear}</button></div>`}</header>`;
+  return `<header class="top">${back ? `<button class="iconbtn" data-act="${back}" aria-label="Volver">${ICON.back}</button>` : ""}<div class="brand grow">${eyebrow ? `<span class="eyebrow">${esc(eyebrow)}</span>` : ""}<h1>${esc(title)}</h1></div>${back ? "" : `<button class="iconbtn" data-act="settings" aria-label="Ajustes">${ICON.gear}</button>`}</header>`;
 }
 
 /* ---------- onboarding ---------- */
@@ -1015,50 +1013,6 @@ async function payEvent(key){
   } else if (src === "d"){ debtDetail("debt", ref); }
 }
 
-/* ---------- asistente (copiar resumen para Claude) ---------- */
-const AI_CHIPS = ["¿En qué estoy gastando de más?","¿Por qué subieron mis gastos este mes?","¿Qué gastos recurrentes o innecesarios tengo?","¿Dónde puedo ahorrar?","¿Puedo comprar algo de $ 800.000 este mes?","Arma un plan para cumplir mis metas","Ajusta mis presupuestos"];
-function viewAI(){
-  return header("Asistente", "Pregúntale a Claude con tus datos") + `<div class="stack">
-    <div class="card stack"><p style="margin:0">Elige una pregunta o escribe la tuya. Copio la pregunta junto con un resumen de tus finanzas; luego la pegas en la app de Claude. Tus datos solo salen del teléfono cuando tú los pegas.</p>
-      <div class="chips">${AI_CHIPS.map(c => `<button class="chip" data-act="ai-chip" data-q="${esc(c)}">${esc(c)}</button>`).join("")}</div>
-    </div>
-    <label class="f">Tu pregunta<textarea class="inp" id="ai-in" rows="3" placeholder="Ej. ¿Me alcanza para pagar la tarjeta completa este mes?"></textarea></label>
-    <button class="btn primary block" data-act="ai-send">Copiar pregunta con mis datos</button>
-    <a class="btn block" style="text-align:center;text-decoration:none" href="https://claude.ai/new" target="_blank" rel="noopener">Abrir Claude</a>
-    <div id="ai-out"></div>
-    <p class="muted small">Es orientación con base en tus datos, no asesoría financiera profesional.</p>
-  </div>`;
-}
-function aiContext(){
-  const now = curMonth(), t = totals();
-  const months = [3,2,1,0].map(i => shiftMonth(now, -i)).map(k => { const [f,to] = monthRange(k); const fl = monthFlows(k); return { mes:k, ingresos:Math.round(fl.ing), gastos:Math.round(fl.gas), porCategoria: spendByTopCat(f,to).slice(0,10).map(r => [r.name, Math.round(r.v)]) }; });
-  const since = addDays(today(), -75);
-  const movs = sortedTxns().filter(x => x.date >= since && x.type !== "transferencia").slice(0, 220).map(x => [x.date, x.type === "ingreso" ? "+" : "-", Math.round(x.amount), catName(x.catId), x.note || ""]);
-  const rec = {}; for (const x of S.txns){ if (x.type !== "gasto" || x.date < addDays(today(), -130)) continue; const k = (x.note || catName(x.catId)).toLowerCase().trim() + "|" + Math.round(x.amount / 1000); (rec[k] = rec[k] || new Set()).add(monthKeyOf(x.date)); }
-  const recurrentes = Object.entries(rec).filter(([,s]) => s.size >= 2).map(([k,s]) => ({ que:k.split("|")[0], aprox: Number(k.split("|")[1]) * 1000, meses:s.size })).slice(0, 25);
-  return JSON.stringify({
-    hoy: today(), moneda:"COP",
-    cuentas: activeAccounts().map(a => ({ nombre:a.name, tipo:ACC_TYPES[a.type], saldo:Math.round(accBalance(a)), ...(a.type === "credito" ? { cupo:a.limit, tasaEA:a.rateEA } : {}) })),
-    disponibleTotal: Math.round(t.disponible), obligacionesPendientesMes: Math.round(obligationsThisMonth().total), deudaTotal: Math.round(t.deudas), teDeben: Math.round(t.meDeben),
-    meses: months,
-    presupuestos: S.budgets.map(b => { const u = budgetUse(b); return { categoria:budgetLabel(b), periodo:b.period || "mes", limite:b.limit, usado:Math.round(u.used) }; }),
-    metas: S.goals.map(g => { const s = goalStats(g); return { nombre:g.name, objetivo:s.target, ahorrado:s.saved, fechaLimite:g.deadline || null, aporteMensualPlan:g.plan || null }; }),
-    deudas: [...S.debts.map(d => ({ nombre:d.name, direccion:d.dir === "medeben" ? "me deben" : "debo", saldo:Math.round(debtBalance(d)), tasaEA:d.rateEA || null, cuota:d.minPayment || null })), ...activeAccounts().filter(a => a.type === "credito").map(a => ({ nombre:a.name, tipo:"tarjeta", saldo:Math.round(Math.max(0,-accBalance(a))), tasaEA:a.rateEA || null, cuota:a.minPayment || null }))],
-    programado30dias: events(today(), addDays(today(), 30)).filter(e => !e.paid && !e.info).map(e => [e.date, e.name, Math.round(e.amount)]),
-    clientesEdicion: { ...cliStats(), porCliente: cliLedger(), videosPendientes: S.videos.filter(v => v.estado !== "Entregado").map(v => [v.cliente, v.video, v.estado]) },
-    posiblesRecurrentes: recurrentes,
-    movimientosRecientes: movs
-  });
-}
-function aiPrompt(q){
-  return `Eres mi asistente financiero personal. Vivo en Colombia. Responde en español de Colombia, claro y directo. Montos en pesos colombianos con punto de miles (ej. $ 1.250.000). Usa SOLO los datos del JSON de abajo, que exporté de mi app de finanzas; si algo no está, dímelo. Muestra los números que respaldan cada conclusión. Máximo unas 250 palabras salvo que pida detalle. Para "¿puedo comprar X?" compara con el disponible, las obligaciones pendientes del mes, los pagos programados y los presupuestos, y dame un sí, no o "sí, si…" con la razón.\n\nMI PREGUNTA: ${q}\n\nMIS DATOS (JSON):\n${aiContext()}`;
-}
-async function aiAsk(q){
-  q = q.trim(); if (!q) return toast("Escribe o elige una pregunta.");
-  const text = aiPrompt(q); const out = document.getElementById("ai-out");
-  try { await navigator.clipboard.writeText(text); toast("Copiado. Pégalo en Claude."); if (out) out.innerHTML = `<div class="alert info"><div>Listo: la pregunta y tus datos están copiados. Toca <b>Abrir Claude</b> y pega.</div></div>`; }
-  catch { if (out){ out.innerHTML = `<label class="f">No se pudo copiar solo. Selecciona y copia este texto<textarea class="inp num" id="ai-text" style="min-height:200px;font-size:12px" readonly>${esc(text)}</textarea></label>`; const ta = document.getElementById("ai-text"); ta.focus(); ta.select(); } }
-}
 /* ---------- clientes (videos y cobros) ---------- */
 const V_ESTADOS = ["Pendiente","En edición","Entregado"];
 const V_ORDEN = { "Pendiente":0, "En edición":1, "Entregado":2 };
@@ -1429,8 +1383,6 @@ document.addEventListener("click", async e => {
     case "ev-pay": payEvent(el.dataset.key); break;
     case "ep-save": case "ep-skip": { const [, ref, date] = el.dataset.key.split(":"); const b = S.bills.find(x => x.id === ref); const paid = [...(b.paid || []), date].filter(d => d >= addDays(today(), -400)); const ok = await safe(async () => { if (act === "ep-save"){ const amount = amtVal("ep-amt"); if (!amount) throw { code:"invalid_argument" }; await put("txns", { type: b.kind === "ingreso" ? "ingreso" : "gasto", amount, accountId: val("ep-acc"), catId: b.catId || "", date: val("ep-date") || today(), note: b.name, createdAt: Date.now() }); } await put("bills", { ...b, paid }); }, b.kind === "ingreso" ? "Marcado como recibido" : "Marcado como pagado"); if (ok) closeSheet(); break; }
 
-    case "ai-chip": { const t = document.getElementById("ai-in"); if (t) t.value = el.dataset.q; aiAsk(el.dataset.q); break; }
-    case "ai-send": aiAsk(val("ai-in")); break;
 
     case "st-save": safe(() => putSettings({ minBalance: amtVal("st-min") }), "Ajuste guardado"); break;
     case "new-account": accountForm(); break;

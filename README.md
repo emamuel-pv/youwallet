@@ -11,7 +11,7 @@ App personal de finanzas en pesos colombianos. Funciona en el navegador y se ins
 - Metas de ahorro y fondo de emergencia, con simulador y fecha estimada.
 - Deudas con tasa, cuota, intereses, calendario de pagos y abonos extra.
 - Agenda de pagos recurrentes y flujo de caja a 60 días con alerta de faltantes.
-- Asistente: copia tu pregunta con un resumen de tus datos para pegarla en Claude.
+- Clientes de edición: videos que debes, cobros pendientes, mensaje de cobro y proyectos.
 - PIN, copia de seguridad y restauración (JSON), y exportación de movimientos a CSV.
 
 ## Publicar en GitHub Pages
