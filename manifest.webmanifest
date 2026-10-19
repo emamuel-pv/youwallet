@@ -1,0 +1,17 @@
+{
+  "name": "YouWallet",
+  "short_name": "YouWallet",
+  "description": "Finanzas personales en pesos, guardadas solo en tu teléfono.",
+  "lang": "es-CO",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F1F2F6",
+  "theme_color": "#2F49D1",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
