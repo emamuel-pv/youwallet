@@ -7,8 +7,13 @@ Responde siempre en español de Colombia, claro y directo.
 ## Cómo está hecha
 
 - Todo en un solo archivo: `index.html` (HTML + CSS + JS sin frameworks ni build). No agregar dependencias ni pasos de compilación.
-- Datos **solo en el teléfono**: IndexedDB (base `youwallet`, store `kv`), con localStorage como respaldo. No hay servidor, base de datos ni cuentas. Nunca subir datos personales al repo (es público).
-- `sw.js`: service worker para modo sin conexión (red primero, caché si no hay internet). **Cada vez que cambies algo, sube el número de `CACHE`** (ahora `youwallet-v7`) para que el iPhone baje la versión nueva.
+- Datos **en el teléfono primero**: IndexedDB (base `youwallet`, store `kv`), con localStorage como respaldo. La app funciona igual sin internet y sin cuenta. Nunca subir datos personales al repo (es público).
+- **Nube opcional con Supabase** (proyecto `nhaxqqujbtxqurftyoex`): al iniciar sesión (correo y contraseña) se sincroniza con la tabla `registros` (`user_id`, `coll`, `id`, `data` jsonb, `deleted`, `updated_at` puesto por el servidor), protegida con RLS. Se habla con Supabase por `fetch` directo a `/auth/v1` y `/rest/v1`, sin librería. En el código solo va la clave pública (`sb_publishable_…`); **nunca** poner la `service_role`/`secret`.
+  - Cada `put`/`putMany`/`del`/`putSettings`/`setSettings` marca el registro como pendiente (`track`), y `runSync()` sube pendientes y luego baja lo cambiado desde `lastPull`. Si un registro tiene cambio local sin subir, gana el local. Borrar sube `deleted: true`.
+  - Los ajustes van como `coll = "settings"`, `id = "main"`, **sin el PIN** (cada teléfono tiene el suyo).
+  - Sesión y pendientes se guardan en la clave `sync` del mismo store. Si se agrega una colección nueva, basta con incluirla en `COLLS`.
+  - Cambios de la base: nueva migración en `supabase/migrations/` (la integración de GitHub de Supabase la aplica al subir a `main`).
+- `sw.js`: service worker para modo sin conexión (red primero, caché si no hay internet). **Cada vez que cambies algo, sube el número de `CACHE`** (ahora `youwallet-v8`) para que el iPhone baje la versión nueva.
 - `manifest.webmanifest` + íconos `icon-192.png`, `icon-512.png`, `apple-touch-icon.png` en la raíz.
 - Colecciones en el estado `S`: `accounts`, `txns`, `cats`, `budgets`, `goals`, `debts`, `bills`, `videos`, `proyectos` y `settings`. Funciones de guardado: `put(coll, obj)`, `putMany`, `del(coll, id)`, `putSettings(patch)`, `setSettings(obj)`.
 - Render: `render()` arma la vista según `UI.tab` (`inicio`, `movs`, `plan`, `agenda`, `clientes`) o `UI.settings`. Los clics se manejan con un solo listener por `data-act`. Los formularios abren en hojas inferiores con `openSheet()`.
@@ -21,9 +26,9 @@ Responde siempre en español de Colombia, claro y directo.
 - Planear: presupuestos (mensual/semanal, alertas 80% y 100%, sugeridos), metas y fondo de emergencia, deudas (tasa E.A., cuota, simulador, abonos extra, calendario).
 - Agenda: pagos e ingresos recurrentes (semanal, quincenal 15 y fin de mes, mensual, anual), cortes y pagos de tarjetas, flujo de caja a 60 días y alerta de faltantes.
 - Clientes: control de videos de edición (DMT Mentoring, El Clan): estado Pendiente/En edición/Entregado, precio (vacío = PENDIENTE), pagado, mensaje de cobro para WhatsApp, proyectos con pendientes. Al marcar pagado ofrece registrar el ingreso.
-- Ajustes: cuentas, categorías y subcategorías, PIN (hash PBKDF2), copia/restauración, exportar CSV, borrar todo, instrucciones para iPhone.
+- Ajustes: cuentas, categorías y subcategorías, Nube (iniciar/cerrar sesión, estado de sincronización), PIN (hash PBKDF2), copia/restauración, exportar CSV, borrar todo, instrucciones para iPhone.
 - Sin zoom (viewport + bloqueo de pellizco y doble toque; inputs a 16px).
-- El asistente de IA se quitó a propósito: no hay servidor para usarlo.
+- El asistente de IA se quitó a propósito.
 
 ## Estilo
 

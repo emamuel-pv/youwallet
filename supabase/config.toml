@@ -1,0 +1,2 @@
+# Proyecto de Supabase de YouWallet. Las tablas viven en supabase/migrations.
+project_id = "youwallet"

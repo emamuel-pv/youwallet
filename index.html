@@ -532,17 +532,216 @@ async function put(coll, obj){
   const id = obj.id || newId(); const rec = { ...strip(obj), id };
   const next = [...S[coll]]; const i = next.findIndex(x => x.id === id);
   if (i >= 0) next[i] = rec; else next.push(rec);
-  S[coll] = next; await persist(coll); changed(); return id;
+  S[coll] = next; await persist(coll); track(coll, [id]); changed(); return id;
 }
 async function putMany(coll, recs){
   const map = new Map(S[coll].map(x => [x.id, x]));
   for (const r of recs) if (r && r.id) map.set(r.id, strip(r));
-  S[coll] = [...map.values()]; await persist(coll); changed();
+  S[coll] = [...map.values()]; await persist(coll); track(coll, recs.filter(r => r && r.id).map(r => r.id)); changed();
 }
-async function del(coll, id){ S[coll] = S[coll].filter(x => x.id !== id); await persist(coll); changed(); }
-async function putSettings(patch){ S.settings = { ...(S.settings || {}), ...strip(patch), updatedAt: Date.now() }; await persist("settings"); changed(); }
-async function setSettings(obj){ S.settings = obj ? strip(obj) : null; await persist("settings"); changed(); }
+async function del(coll, id){ S[coll] = S[coll].filter(x => x.id !== id); await persist(coll); track(coll, [id]); changed(); }
+async function putSettings(patch){ S.settings = { ...(S.settings || {}), ...strip(patch), updatedAt: Date.now() }; await persist("settings"); track("settings", ["main"]); changed(); }
+async function setSettings(obj){ S.settings = obj ? strip(obj) : null; await persist("settings"); track("settings", ["main"]); changed(); }
 async function safe(fn, okMsg){ try { await fn(); if (okMsg) toast(okMsg); return true; } catch (e){ console.error(e); toast(errText(e)); return false; } }
+
+/* ============ nube (Supabase) ============ */
+/* Los datos siguen viviendo en el teléfono. Con sesión iniciada, cada cambio se sube a la tabla `registros`
+   y los cambios de otros dispositivos se bajan. Si un registro cambió aquí y aún no se ha subido, gana el de aquí. */
+const SB_URL = "https://nhaxqqujbtxqurftyoex.supabase.co";
+const SB_KEY = "sb_publishable_qMKJHy37y0i-NyN9uYT2ug_wD1CjFZW";
+const SYNC = { session:null, dirty:{}, lastPull:null, at:null, busy:false, again:false, error:"", timer:null, seq:Date.now(), refreshing:null };
+const appUrl = () => location.origin + location.pathname;
+const pending = () => Object.keys(SYNC.dirty).length;
+async function loadSync(){
+  try {
+    const m = idb ? await idbGet("sync") : JSON.parse(lsGet("yw.sync") || "null");
+    if (m){ SYNC.session = m.session || null; SYNC.dirty = m.dirty || {}; SYNC.lastPull = m.lastPull || null; SYNC.at = m.at || null; }
+  } catch (e){ console.error(e); }
+}
+async function saveSync(){
+  const v = { session: SYNC.session, dirty: SYNC.dirty, lastPull: SYNC.lastPull, at: SYNC.at };
+  try { if (idb) await idbSet("sync", v); else lsSet("yw.sync", JSON.stringify(v)); } catch (e){ console.error(e); }
+}
+function track(coll, ids){
+  if (!SYNC.session || !ids.length) return;
+  for (const id of ids) SYNC.dirty[coll + ":" + id] = ++SYNC.seq;
+  saveSync(); queueSync();
+}
+function trackAll(){
+  if (S.settings) SYNC.dirty["settings:main"] = ++SYNC.seq;
+  for (const c of COLLS) for (const r of S[c]) if (r && r.id) SYNC.dirty[c + ":" + r.id] = ++SYNC.seq;
+}
+function queueSync(delay = 1500){
+  if (!SYNC.session) return;
+  clearTimeout(SYNC.timer); SYNC.timer = setTimeout(runSync, delay);
+}
+
+const AUTH_ERR = {
+  invalid_credentials:"Correo o contraseña incorrectos.", invalid_grant:"Correo o contraseña incorrectos.",
+  email_not_confirmed:"Primero confirma tu correo con el enlace que te enviamos.",
+  user_already_exists:"Ese correo ya tiene cuenta. Inicia sesión.", email_exists:"Ese correo ya tiene cuenta. Inicia sesión.",
+  weak_password:"Esa contraseña es muy débil. Usa al menos 8 caracteres con letras y números.",
+  email_address_invalid:"Ese correo no es válido.", signup_disabled:"La creación de cuentas está desactivada en Supabase.",
+  over_email_send_rate_limit:"Se enviaron muchos correos. Espera unos minutos.", over_request_rate_limit:"Demasiados intentos. Espera unos minutos."
+};
+const offlineErr = () => Object.assign(new Error("Sin conexión a internet."), { offline:true });
+async function authCall(path, body, token){
+  let res;
+  try { res = await fetch(`${SB_URL}/auth/v1/${path}`, { method:"POST", headers:{ apikey:SB_KEY, "Content-Type":"application/json", ...(token ? { Authorization:"Bearer " + token } : {}) }, body: JSON.stringify(body || {}) }); }
+  catch { throw offlineErr(); }
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok){ const code = j.error_code || j.code || j.error; throw Object.assign(new Error(AUTH_ERR[code] || j.msg || j.error_description || "No se pudo conectar con tu cuenta."), { status: res.status, code }); }
+  return j;
+}
+function pickSession(r){
+  return { access_token: r.access_token, refresh_token: r.refresh_token, expires_at: r.expires_at || Math.floor(Date.now() / 1000) + (r.expires_in || 3600), user: { id: r.user.id, email: r.user.email } };
+}
+function endSession(msg){ SYNC.session = null; SYNC.dirty = {}; SYNC.lastPull = null; SYNC.error = msg || ""; clearTimeout(SYNC.timer); saveSync(); schedule(); }
+async function ensureToken(force){
+  const s = SYNC.session; if (!s) throw new Error("Inicia sesión para sincronizar.");
+  if (!force && s.expires_at * 1000 - Date.now() > 60000) return;
+  if (!SYNC.refreshing) SYNC.refreshing = (async () => {
+    try { const r = await authCall("token?grant_type=refresh_token", { refresh_token: s.refresh_token }); SYNC.session = pickSession(r); await saveSync(); }
+    catch (e){ if (!e.offline && e.status && e.status < 500){ const msg = "Tu sesión venció. Vuelve a iniciar sesión."; endSession(msg); throw new Error(msg); } throw e; }
+    finally { SYNC.refreshing = null; }
+  })();
+  return SYNC.refreshing;
+}
+async function sbFetch(path, opts = {}, retried){
+  await ensureToken();
+  let res;
+  try { res = await fetch(SB_URL + path, { ...opts, headers:{ apikey:SB_KEY, Authorization:"Bearer " + SYNC.session.access_token, "Content-Type":"application/json", ...(opts.headers || {}) } }); }
+  catch { throw offlineErr(); }
+  if (res.status === 401 && !retried){ await ensureToken(true); return sbFetch(path, opts, true); }
+  if (!res.ok){
+    const j = await res.json().catch(() => ({}));
+    if (res.status === 404 || j.code === "PGRST205" || j.code === "42P01") throw new Error("Falta crear la tabla «registros» en Supabase.");
+    throw new Error(j.message || `Supabase respondió ${res.status}.`);
+  }
+  return res;
+}
+
+function recData(coll, id){
+  if (coll === "settings") return S.settings ? (({ pin, ...r }) => r)(S.settings) : null;
+  return (S[coll] || []).find(x => x.id === id) || null;
+}
+async function syncPush(){
+  const keys = Object.keys(SYNC.dirty); if (!keys.length) return;
+  const uid = SYNC.session.user.id;
+  for (let i = 0; i < keys.length; i += 500){
+    const chunk = keys.slice(i, i + 500).map(k => [k, SYNC.dirty[k]]);
+    const rows = chunk.map(([k]) => { const j = k.indexOf(":"), coll = k.slice(0, j), id = k.slice(j + 1); const data = recData(coll, id); return { user_id: uid, coll, id, data, deleted: data === null }; });
+    await sbFetch("/rest/v1/registros?on_conflict=user_id,coll,id", { method:"POST", headers:{ Prefer:"resolution=merge-duplicates,return=minimal" }, body: JSON.stringify(rows) });
+    for (const [k, v] of chunk) if (SYNC.dirty[k] === v) delete SYNC.dirty[k];
+    await saveSync();
+  }
+}
+const tsMs = s => Date.parse(String(s).replace(/(\.\d{3})\d+/, "$1"));
+async function syncPull(){
+  const since = SYNC.lastPull ? new Date(tsMs(SYNC.lastPull) - 10000).toISOString() : null;
+  const touched = new Set(), maps = {}; let newest = SYNC.lastPull, offset = 0;
+  for (;;){
+    let q = `/rest/v1/registros?select=coll,id,data,deleted,updated_at&order=updated_at.asc,coll.asc,id.asc&limit=1000&offset=${offset}`;
+    if (since) q += `&updated_at=gt.${encodeURIComponent(since)}`;
+    const rows = await (await sbFetch(q)).json();
+    for (const r of rows){
+      if (!newest || tsMs(r.updated_at) > tsMs(newest)) newest = r.updated_at;
+      if (SYNC.dirty[r.coll + ":" + r.id]) continue;
+      if (r.coll === "settings"){
+        const pin = S.settings && S.settings.pin;
+        S.settings = r.deleted || !r.data ? null : { ...r.data, ...(pin ? { pin } : {}) };
+        touched.add("settings"); continue;
+      }
+      if (!COLLS.includes(r.coll)) continue;
+      const m = maps[r.coll] || (maps[r.coll] = new Map(S[r.coll].map(x => [x.id, x])));
+      if (r.deleted || !r.data) m.delete(r.id); else m.set(r.id, { ...r.data, id: r.id });
+      touched.add(r.coll);
+    }
+    if (rows.length < 1000) break;
+    offset += 1000;
+  }
+  for (const c in maps) S[c] = [...maps[c].values()];
+  for (const c of touched) await persist(c);
+  SYNC.lastPull = newest;
+  if (touched.size) changed();
+}
+async function runSync(){
+  if (!SYNC.session) return;
+  if (SYNC.busy){ SYNC.again = true; return; }
+  SYNC.busy = true; SYNC.again = false;
+  try {
+    if (navigator.onLine === false) throw offlineErr();
+    await syncPush(); await syncPull();
+    SYNC.at = Date.now(); SYNC.error = "";
+  } catch (e){ console.error(e); SYNC.error = e.message || "No se pudo sincronizar."; }
+  finally {
+    SYNC.busy = false; await saveSync();
+    if (UI.settings === "nube" || !S.settings) schedule();
+    if (SYNC.again) queueSync(500);
+  }
+}
+async function startSession(r){
+  SYNC.session = pickSession(r); SYNC.lastPull = null; SYNC.error = "";
+  trackAll(); await saveSync(); await runSync();
+}
+async function cloudAuth(mode, btn){
+  const email = val("cl-email").trim().toLowerCase(), pass = val("cl-pass");
+  const say = t => { const m = document.getElementById("clMsg"); if (m) m.textContent = t; };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return say("Escribe un correo válido.");
+  if (pass.length < 6) return say("La contraseña debe tener al menos 6 caracteres.");
+  btn.disabled = true; say(mode === "signup" ? "Creando la cuenta…" : "Entrando…");
+  try {
+    const r = mode === "signup"
+      ? await authCall("signup?redirect_to=" + encodeURIComponent(appUrl()), { email, password: pass })
+      : await authCall("token?grant_type=password", { email, password: pass });
+    if (!r.access_token){ say("Te enviamos un correo para confirmar la cuenta. Ábrelo, toca el enlace y luego vuelve aquí a iniciar sesión."); btn.disabled = false; return; }
+    closeSheet(); toast("Sesión iniciada. Sincronizando…");
+    await startSession(r);
+    toast(SYNC.error ? SYNC.error : "Datos sincronizados");
+  } catch (e){ say(e.message); btn.disabled = false; }
+}
+async function cloudLogout(){
+  if (pending()) await runSync();
+  const left = pending(), token = SYNC.session && SYNC.session.access_token;
+  endSession("");
+  if (token) authCall("logout", {}, token).catch(() => {});
+  toast(left ? `Sesión cerrada. Quedaron ${left} cambios sin subir.` : "Sesión cerrada. Tus datos siguen en este teléfono.");
+}
+function cloudSheet(mode = "login"){
+  const up = mode === "signup";
+  openSheet(up ? "Crear cuenta" : "Iniciar sesión", `<div class="stack">
+    <p class="small muted" style="margin:0">${up ? "Con una cuenta, tus datos se respaldan solos y puedes usar la app en otro teléfono o en el computador." : "Entra con el correo y la contraseña de tu cuenta de YouWallet."}</p>
+    <label class="f">Correo<input class="inp" id="cl-email" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false"></label>
+    <label class="f">Contraseña<input class="inp" id="cl-pass" type="password" autocomplete="${up ? "new-password" : "current-password"}"></label>
+    <button class="btn primary block" data-act="cl-go" data-mode="${mode}">${up ? "Crear cuenta" : "Entrar"}</button>
+    <button class="btn block" data-act="cloud-${up ? "login" : "signup"}">${up ? "Ya tengo cuenta" : "Crear una cuenta nueva"}</button>
+    <p class="small muted" id="clMsg" role="status" style="margin:0"></p>
+  </div>`);
+}
+function viewCloud(){
+  const s = SYNC.session;
+  const when = SYNC.at ? new Intl.DateTimeFormat("es-CO",{ dateStyle:"medium", timeStyle:"short" }).format(new Date(SYNC.at)) : "nunca";
+  const err = SYNC.error ? `<div class="alert warn"><div>${esc(SYNC.error)}</div></div>` : "";
+  if (!s) return header("Nube", "Ajustes", "settings-home") + `<div class="stack">
+    <div class="card stack" style="gap:8px"><h3>Respaldo en tu cuenta</h3>
+      <p class="small" style="margin:0">Inicia sesión y tus datos se copian solos a tu cuenta en la nube (Supabase). Siguen guardados en este teléfono, así que la app funciona sin internet y sincroniza cuando vuelve la conexión.</p>
+      <p class="small muted" style="margin:0">Solo tú puedes ver tus datos. El PIN no se sube: cada teléfono tiene el suyo.</p>
+    </div>${err}
+    <div class="grid2"><button class="btn primary" data-act="cloud-login">Iniciar sesión</button><button class="btn" data-act="cloud-signup">Crear cuenta</button></div>
+  </div>`;
+  return header("Nube", "Ajustes", "settings-home") + `<div class="stack">
+    <div class="card stack" style="gap:8px"><h3>Tu cuenta</h3>
+      <p class="small" style="margin:0"><span class="pill ok">Conectado</span> ${esc(s.user.email)}</p>
+      <p class="small muted" style="margin:0">Última sincronización: <b>${SYNC.busy ? "sincronizando…" : esc(when)}</b>${pending() ? ` · ${pending()} cambios por subir` : ""}</p>
+    </div>${err}
+    <button class="btn primary" data-act="cloud-sync" ${SYNC.busy ? "disabled" : ""}>Sincronizar ahora</button>
+    <button class="btn danger" data-act="cloud-logout">Cerrar sesión</button>
+    <p class="small muted" style="margin:0">Al cerrar sesión tus datos se quedan en este teléfono, pero dejan de sincronizarse.</p>
+  </div>`;
+}
+document.addEventListener("visibilitychange", () => { if (!document.hidden) queueSync(0); });
+window.addEventListener("online", () => queueSync(0));
+setInterval(() => { if (!document.hidden) queueSync(0); }, 60000);
 
 async function boot(){
   try { idb = await idbOpen(); } catch { idb = null; }
@@ -550,11 +749,13 @@ async function boot(){
     for (const c of COLLS){ const v = idb ? await idbGet(c) : JSON.parse(lsGet("yw." + c) || "null"); S[c] = Array.isArray(v) ? v : []; }
     S.settings = (idb ? await idbGet("settings") : JSON.parse(lsGet("yw.settings") || "null")) || null;
   } catch (e){ console.error(e); toast("No se pudieron leer tus datos guardados."); }
+  await loadSync();
   S.ready = true; S.lastSync = Date.now();
   if (S.settings && S.settings.pin) UI.locked = true;
   render();
   try { if (navigator.storage && navigator.storage.persist){ S.persisted = await navigator.storage.persist(); } } catch {}
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+  queueSync(0);
 }
 let rafPending = false;
 function schedule(){ if (rafPending) return; rafPending = true; requestAnimationFrame(() => { rafPending = false; render(); }); }
@@ -631,7 +832,8 @@ function viewOnboarding(){
     <div class="list">${acc.map(([k,n,t,on]) => `<div class="item"><label class="check grow"><input type="checkbox" id="ob-${k}" ${on ? "checked" : ""}><span><span class="t">${n}</span><br><span class="s">${ACC_TYPES[t]}</span></span></label><input class="inp amt num" style="width:140px;font-size:16px;padding:8px 10px" inputmode="numeric" id="obv-${k}" placeholder="${t === "credito" ? "Deuda hoy" : "Saldo hoy"}" aria-label="${t === "credito" ? "Deuda actual de" : "Saldo actual de"} ${n}"></div>`).join("")}</div>
     <label class="check"><input type="checkbox" id="ob-cats" checked> Crear categorías comunes (mercado, transporte, arriendo, servicios…)</label>
     <button class="btn primary block" data-act="onboard" id="obBtn">Empezar</button>
-    <p class="muted small">Tus datos se guardan solo en este teléfono. No hay cuentas ni servidores. Haz copias de seguridad de vez en cuando desde Ajustes.</p>
+    ${SYNC.session ? `<p class="muted small">Sesión iniciada como ${esc(SYNC.session.user.email)}. ${SYNC.busy ? "Buscando tus datos…" : SYNC.error ? esc(SYNC.error) : "Tu cuenta aún no tiene datos: empieza aquí y se respaldan solos."}</p>` : `<button class="btn block" data-act="cloud-login">Ya uso YouWallet: iniciar sesión</button>
+    <p class="muted small">Tus datos se guardan en este teléfono. Si inicias sesión, también se respaldan en tu cuenta.</p>`}
   </div>`;
 }
 const DEFAULT_CATS = {
@@ -1290,9 +1492,10 @@ function viewSettings(){
   if (s === "categorias") return viewCats();
   if (s === "seguridad") return viewSecurity();
   if (s === "iphone") return viewIphone();
+  if (s === "nube") return viewCloud();
   return header("Ajustes", "", "settings-back") + `<div class="stack">
     <div class="list">
-      ${[["cuentas","Cuentas","Bancos, Nequi, Daviplata, efectivo y tarjetas"],["categorias","Categorías","Crea categorías y subcategorías"],["seguridad","Seguridad y datos","PIN, copias de seguridad, exportar, borrar"],["iphone","Ponerla en tu iPhone","Agregarla a la pantalla de inicio"]].map(([k,t,d]) => `<button class="item" data-act="open-settings" data-s="${k}"><div class="grow"><div class="t">${t}</div><div class="s">${d}</div></div><span class="muted">›</span></button>`).join("")}
+      ${[["cuentas","Cuentas","Bancos, Nequi, Daviplata, efectivo y tarjetas"],["categorias","Categorías","Crea categorías y subcategorías"],["nube","Nube y sincronización", SYNC.session ? "Conectado: " + SYNC.session.user.email : "Respaldo automático en tu cuenta"],["seguridad","Seguridad y datos","PIN, copias de seguridad, exportar, borrar"],["iphone","Ponerla en tu iPhone","Agregarla a la pantalla de inicio"]].map(([k,t,d]) => `<button class="item" data-act="open-settings" data-s="${k}"><div class="grow"><div class="t">${t}</div><div class="s">${esc(d)}</div></div><span class="muted">›</span></button>`).join("")}
     </div>
     <div class="card stack"><h3>Alertas</h3><label class="f">Avisarme si el saldo previsto baja de<input class="inp amt num" id="st-min" inputmode="numeric" value="${S.settings.minBalance ? dots(S.settings.minBalance) : ""}" placeholder="$ 0"></label><button class="btn" data-act="st-save">Guardar</button></div>
   </div>`;
@@ -1344,7 +1547,7 @@ function viewSecurity(){
   const lb = st.lastBackup ? fmtDate(iso(new Date(st.lastBackup))) : null;
   return header("Seguridad y datos", "Ajustes", "settings-home") + `<div class="stack">
     <div class="card stack" style="gap:8px"><h3>Dónde están tus datos</h3>
-      <p class="small" style="margin:0">Solo en este teléfono, dentro del almacenamiento de la app. No se envían a ningún servidor ni a GitHub. Si borras los datos de Safari, quitas la app de inicio o cambias de iPhone, se pierden: por eso las copias de seguridad.</p>
+      <p class="small" style="margin:0">${SYNC.session ? `En este teléfono y en tu cuenta en la nube (${esc(SYNC.session.user.email)}). Si pierdes el teléfono, inicia sesión en otro y recuperas todo. Nunca se suben a GitHub.` : `Solo en este teléfono, dentro del almacenamiento de la app. No se envían a ningún servidor ni a GitHub. Si borras los datos de Safari, quitas la app de inicio o cambias de iPhone, se pierden: inicia sesión en Ajustes → Nube o guarda copias de seguridad.`}</p>
       <p class="small" style="margin:0">${S.persisted ? `<span class="pill ok">Almacenamiento persistente</span> El sistema no los borrará para liberar espacio.` : `<span class="pill warn">Almacenamiento normal</span> Instala la app en la pantalla de inicio y úsala seguido para que iOS no la limpie.`}</p>
     </div>
     <div class="card stack" style="gap:8px"><h3>PIN de la app</h3>
@@ -1357,7 +1560,7 @@ function viewSecurity(){
       <div class="grid2"><button class="btn primary" data-act="backup">Guardar copia</button><label class="btn" style="text-align:center">Restaurar copia<input type="file" id="restoreFile" accept="application/json,.json" hidden></label></div>
     </div>
     <div class="card stack" style="gap:8px"><h3>Exportar</h3><p class="small muted" style="margin:0">Movimientos en CSV para abrir en Excel o Google Sheets.</p><button class="btn" data-act="csv">Exportar movimientos (CSV)</button></div>
-    <div class="card stack" style="gap:8px"><h3>Borrar mis datos</h3><p class="small muted" style="margin:0">Elimina de este teléfono cuentas, movimientos, metas, deudas y ajustes. Guarda una copia antes.</p><label class="f">Escribe BORRAR para confirmar<input class="inp" id="wipe-txt" autocomplete="off"></label><button class="btn danger" data-act="wipe">Borrar todo</button></div>
+    <div class="card stack" style="gap:8px"><h3>Borrar mis datos</h3><p class="small muted" style="margin:0">Elimina ${SYNC.session ? "de este teléfono y de tu cuenta en la nube" : "de este teléfono"} cuentas, movimientos, metas, deudas y ajustes. Guarda una copia antes.</p><label class="f">Escribe BORRAR para confirmar<input class="inp" id="wipe-txt" autocomplete="off"></label><button class="btn danger" data-act="wipe">Borrar todo</button></div>
   </div>`;
 }
 function viewIphone(){
@@ -1404,6 +1607,7 @@ async function restore(file){
 async function wipeAll(btn){
   if (val("wipe-txt").trim().toUpperCase() !== "BORRAR") return toast("Escribe BORRAR para confirmar.");
   btn.disabled = true;
+  if (SYNC.session) trackAll();
   const ok = await safe(async () => { for (const c of COLLS){ S[c] = []; await persist(c); } await setSettings(null); });
   if (ok){ UI.settings = null; UI.tab = "inicio"; toast("Datos borrados"); } else btn.disabled = false;
 }
@@ -1438,6 +1642,11 @@ document.addEventListener("click", async e => {
     case "settings-home": UI.settings = "home"; render(); break;
     case "open-settings": UI.settings = el.dataset.s; closeSheet(); render(); window.scrollTo(0,0); break;
     case "onboard": doOnboard(el); break;
+    case "cloud-login": cloudSheet("login"); break;
+    case "cloud-signup": cloudSheet("signup"); break;
+    case "cl-go": cloudAuth(el.dataset.mode, el); break;
+    case "cloud-sync": runSync(); render(); break;
+    case "cloud-logout": arm(el, cloudLogout); break;
     case "pin": pinInput(el.dataset.d); break;
     case "pin-back": UI.pin = UI.pin.slice(0,-1); render(); break;
     case "pin-forgot": UI.pinMsg = 'Si lo olvidaste, mantén presionado "Olvidé" 3 segundos para quitar el PIN. El bloqueo de tu iPhone sigue protegiendo tus datos.'; render(); break;

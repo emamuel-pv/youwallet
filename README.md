@@ -1,6 +1,6 @@
 # YouWallet
 
-App personal de finanzas en pesos colombianos. Funciona en el navegador y se instala en el iPhone como app. Todos los datos se guardan **solo en el teléfono** (IndexedDB). No hay servidor ni base de datos.
+App personal de finanzas en pesos colombianos. Funciona en el navegador y se instala en el iPhone como app. Los datos se guardan en el teléfono (IndexedDB) y, si inicias sesión, se sincronizan con tu cuenta en Supabase.
 
 ## Qué incluye
 
@@ -12,6 +12,7 @@ App personal de finanzas en pesos colombianos. Funciona en el navegador y se ins
 - Deudas con tasa, cuota, intereses, calendario de pagos y abonos extra.
 - Agenda de pagos recurrentes y flujo de caja a 60 días con alerta de faltantes.
 - Clientes de edición: videos que debes, cobros pendientes, mensaje de cobro y proyectos.
+- Nube opcional: inicia sesión con correo y contraseña y tus datos se respaldan y sincronizan entre dispositivos.
 - PIN, copia de seguridad y restauración (JSON), y exportación de movimientos a CSV.
 
 ## Publicar en GitHub Pages
@@ -29,7 +30,8 @@ App personal de finanzas en pesos colombianos. Funciona en el navegador y se ins
 
 ## Importante sobre tus datos
 
-- Viven solo en ese iPhone. Si borras los datos de Safari, quitas el ícono o cambias de teléfono, se pierden.
+- Sin sesión, viven solo en ese iPhone: si borras los datos de Safari, quitas el ícono o cambias de teléfono, se pierden.
+- Con sesión (**Ajustes → Nube**), también quedan en tu cuenta: en un teléfono nuevo inicias sesión y recuperas todo. El PIN no se sube.
 - Guarda una copia de seguridad cada cierto tiempo: **Ajustes → Seguridad y datos → Guardar copia**. Puedes guardarla en Archivos o en iCloud Drive.
 - Para pasarte a otro teléfono: guarda una copia, instala la app en el nuevo y usa **Restaurar copia**.
 
