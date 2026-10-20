@@ -350,6 +350,7 @@ function accBalance(a){
     if (t.accountId === a.id){ if (t.type === "ingreso") b += amt; else b -= amt; }
     if (t.type === "transferencia" && t.toAccountId === a.id) b += amt;
   }
+  for (const g of S.goals) for (const m of g.moves || []) if (m.acc === a.id) b -= Number(m.amt) || 0;
   return b;
 }
 function totals(){
@@ -382,6 +383,11 @@ function avgMonthlySpend(n = 3){
 }
 function debtBalance(d){ return (Number(d.initial) || 0) - (d.payments || []).reduce((s,p) => s + (Number(p.amt) || 0), 0); }
 function goalSaved(g){ return (g.moves || []).reduce((s,m) => s + (Number(m.amt) || 0), 0); }
+/* Lo apartado en metas que salió de tus cuentas (ya no cuenta en el saldo disponible). */
+function goalsReserved(){ let r = 0; for (const g of S.goals) for (const m of g.moves || []) if (m.acc) r += Number(m.amt) || 0; return r; }
+const goalWhere = g => g.saveAcc ? (accById(g.saveAcc)?.name || "Cuenta eliminada") : (g.saveWhere || "");
+const savingAccounts = () => activeAccounts().filter(a => a.type !== "credito");
+const srcOptions = sel => savingAccounts().map(a => `<option value="${a.id}" ${sel === a.id ? "selected" : ""}>${esc(a.name)} · ${money(accBalance(a))}</option>`).join("");
 
 /* presupuestos */
 function budgetRange(b){ return b.period === "semana" ? weekRange(today()) : monthRange(curMonth()); }
@@ -898,16 +904,19 @@ const DEFAULT_CATS = {
 };
 async function doOnboard(btn){
   btn.disabled = true; btn.textContent = "Preparando…";
+  /* Leer todo antes de guardar: cada guardado redibuja la pantalla y limpia el formulario. */
+  const acc = [["efectivo","Efectivo","efectivo"],["nequi","Nequi","billetera"],["daviplata","Daviplata","billetera"],["ahorros","Cuenta de ahorros","banco"],["tc","Tarjeta de crédito","credito"]]
+    .filter(([k]) => document.getElementById("ob-" + k).checked).map(([k,n,t]) => [n, t, amtVal("obv-" + k)]);
+  const wantCats = document.getElementById("ob-cats").checked;
   const ok = await safe(async () => {
-    if (document.getElementById("ob-cats").checked && !S.cats.length){
+    if (wantCats && !S.cats.length){
       for (const kind of ["gasto","ingreso"]) for (const [name, kids] of DEFAULT_CATS[kind]){
         const pid = await put("cats", { name, kind });
         for (const k of kids) await put("cats", { name:k, kind, parentId:pid });
       }
     }
-    const acc = [["efectivo","Efectivo","efectivo"],["nequi","Nequi","billetera"],["daviplata","Daviplata","billetera"],["ahorros","Cuenta de ahorros","banco"],["tc","Tarjeta de crédito","credito"]];
     let order = 0;
-    for (const [k,n,t] of acc){ if (!document.getElementById("ob-" + k).checked) continue; const v = amtVal("obv-" + k); await put("accounts", { name:n, type:t, initial: t === "credito" ? -v : v, order: order++, createdAt: Date.now() }); }
+    for (const [n,t,v] of acc) await put("accounts", { name:n, type:t, initial: t === "credito" ? -v : v, order: order++, createdAt: Date.now() });
     await putSettings({ createdAt: Date.now(), minBalance: 0 });
   });
   if (!ok){ btn.disabled = false; btn.textContent = "Empezar"; }
@@ -951,6 +960,7 @@ function viewHome(){
     <div class="hero">
       <div class="eyebrow">Saldo disponible</div>
       <div class="big num">${money(t.disponible)}</div>
+      ${goalsReserved() > 0 ? `<button data-act="goto-goals" class="small" style="opacity:.85;margin-top:2px">+ <span class="num">${money(goalsReserved())}</span> apartado en metas ›</button>` : ""}
       <div class="sub">
         <button data-act="oblig"><div>Después de obligaciones</div><div class="num" style="font-weight:500;font-size:16px;margin-top:2px">${money(after)}</div></button>
         <button data-act="goto-debts" style="text-align:right"><div>Deudas pendientes</div><div class="num" style="font-weight:500;font-size:16px;margin-top:2px">${money(t.deudas)}</div></button>
@@ -1213,7 +1223,7 @@ function viewGoals(){
   let h = `<div class="row between wrap"><p class="muted small grow">Define cuánto quieres juntar y para cuándo.</p><div class="row"><button class="btn small" data-act="new-efund">Fondo de emergencia</button><button class="btn small primary" data-act="new-goal">Nueva meta</button></div></div>`;
   if (!S.goals.length) return h + `<div class="card flat empty">Aún no tienes metas. Un buen primer paso es un fondo de emergencia de 3 a 6 meses de gastos.</div>`;
   const list = [...S.goals].sort((a,b) => (b.kind === "emergencia") - (a.kind === "emergencia") || (a.deadline || "9").localeCompare(b.deadline || "9"));
-  h += `<div class="list">` + list.map(g => { const s = goalStats(g); return `<button class="item" data-act="goal" data-id="${g.id}" style="flex-direction:column;align-items:stretch;gap:6px"><div class="row between"><span class="t">${esc(g.name)}</span>${g.kind === "emergencia" ? `<span class="pill info">Emergencia</span>` : s.late ? `<span class="pill warn">Atrasada</span>` : s.pct >= 1 ? `<span class="pill ok">Lograda</span>` : ""}</div><div class="bar ok"><i style="width:${s.pct*100}%"></i></div><div class="row between small muted"><span class="num">${money(s.saved)} de ${money(s.target)}</span><span>${s.pct >= 1 ? "¡Completa!" : s.needMonth ? `${money(s.needMonth)}/mes` : s.eta ? `Llegas ${fmtDate(s.eta)}` : "Sin fecha"}</span></div></button>`; }).join("") + `</div>`;
+  h += `<div class="list">` + list.map(g => { const s = goalStats(g); return `<button class="item" data-act="goal" data-id="${g.id}" style="flex-direction:column;align-items:stretch;gap:6px"><div class="row between"><span class="t">${esc(g.name)}</span>${g.kind === "emergencia" ? `<span class="pill info">Emergencia</span>` : s.late ? `<span class="pill warn">Atrasada</span>` : s.pct >= 1 ? `<span class="pill ok">Lograda</span>` : ""}</div><div class="bar ok"><i style="width:${s.pct*100}%"></i></div>${goalWhere(g) ? `<div class="small muted" style="text-align:left">Ahorrando en ${esc(goalWhere(g))}</div>` : ""}<div class="row between small muted"><span class="num">${money(s.saved)} de ${money(s.target)}</span><span>${s.pct >= 1 ? "¡Completa!" : s.needMonth ? `${money(s.needMonth)}/mes` : s.eta ? `Llegas ${fmtDate(s.eta)}` : "Sin fecha"}</span></div></button>`; }).join("") + `</div>`;
   return h;
 }
 function goalForm(g = {}){
@@ -1225,11 +1235,16 @@ function goalForm(g = {}){
       <label class="f">Fecha límite<input class="inp" type="date" id="go-deadline" value="${g.deadline || ""}"></label>
       <label class="f">Aporte que planeas al mes<input class="inp amt num" id="go-plan" inputmode="numeric" value="${g.plan ? dots(g.plan) : ""}" placeholder="$ 0"></label>
     </div>
-    ${!g.id ? `<label class="f">¿Ya tienes algo ahorrado para esto?<input class="inp amt num" id="go-init" inputmode="numeric" placeholder="$ 0"></label>` : ""}
+    <label class="f">¿Dónde estás ahorrando?<select class="inp" id="go-acc"><option value="">Elige dónde</option>${accOptions(g.saveAcc, a => a.type !== "credito")}<option value="otro" ${!g.saveAcc && g.saveWhere ? "selected" : ""}>Otro lugar</option></select></label>
+    <input class="inp" id="go-where" placeholder="Ej. Alcancía, CDT, Lulo" value="${esc(g.saveWhere || "")}" style="${!g.saveAcc && g.saveWhere ? "" : "display:none"}" aria-label="Otro lugar de ahorro">
+    ${!g.id ? `<div class="grid2">
+      <label class="f">¿Ya tienes algo ahorrado?<input class="inp amt num" id="go-init" inputmode="numeric" placeholder="$ 0"></label>
+      <label class="f">¿Lo resto de una cuenta?<select class="inp" id="go-init-acc"><option value="">No, ya estaba aparte</option>${srcOptions("")}</select></label>
+    </div>` : ""}
     <input type="hidden" id="go-kind" value="${g.kind || "normal"}">
     <button class="btn primary block" data-act="go-save" data-id="${g.id || ""}">Guardar</button>
-    ${g.id ? `<button class="btn danger block" data-act="go-del" data-id="${g.id}">Eliminar meta</button>` : ""}
-  </div>`);
+    ${g.id ? `<button class="btn danger block" data-act="go-del" data-id="${g.id}">Eliminar meta</button><p class="small muted" style="margin:0">Si eliminas la meta, lo que apartaste de tus cuentas vuelve a ellas.</p>` : ""}
+  </div>`, r => { const sel = r.querySelector("#go-acc"), w = r.querySelector("#go-where"); sel.addEventListener("change", () => { w.style.display = sel.value === "otro" ? "" : "none"; if (sel.value === "otro") w.focus(); }); });
 }
 function goalDetail(id){
   const g = S.goals.find(x => x.id === id); if (!g) return closeSheet();
@@ -1241,11 +1256,26 @@ function goalDetail(id){
       <div class="kpi"><div class="eyebrow">Para cumplir a tiempo</div><div class="v">${s.needMonth ? `${money(s.needMonth)} / mes` : g.deadline ? "Fecha vencida" : "Sin fecha límite"}</div>${s.needWeek ? `<div class="small muted num">${money(s.needWeek)} / semana</div>` : ""}</div>
       <div class="kpi"><div class="eyebrow">Fecha estimada</div><div class="v">${s.left <= 0 ? "¡Lograda!" : s.eta ? fmtDate(s.eta) : "Sin aportes aún"}</div><div class="small muted">${s.rate ? `a ${money(s.rate)}/mes` : ""}${s.late ? ` · después de tu fecha` : ""}</div></div>
     </div>
-    <div class="row"><input class="inp amt num grow" id="gm-amt" inputmode="numeric" placeholder="Monto" aria-label="Monto del aporte o retiro"><button class="btn primary" data-act="gm-add" data-id="${g.id}" data-sign="1">Aportar</button><button class="btn" data-act="gm-add" data-id="${g.id}" data-sign="-1">Retirar</button></div>
+    ${goalWhere(g) ? `<p class="small muted" style="margin:0">Ahorrando en <b>${esc(goalWhere(g))}</b></p>` : ""}
+    <div class="card stack" style="gap:10px">
+      <input class="inp amt num" id="gm-amt" inputmode="numeric" placeholder="Monto" aria-label="Monto del aporte o retiro">
+      <label class="f">Cuenta (de dónde sale el aporte o a dónde vuelve el retiro)<select class="inp" id="gm-acc">${srcOptions(g.saveAcc && accById(g.saveAcc) ? g.saveAcc : savingAccounts()[0]?.id)}</select></label>
+      <div class="grid2"><button class="btn primary" data-act="gm-add" data-id="${g.id}" data-sign="1">Aportar</button><button class="btn" data-act="gm-add" data-id="${g.id}" data-sign="-1">Retirar</button></div>
+    </div>
     <div class="card stack" style="gap:8px"><h3>Simular</h3><label class="f">Si aporto al mes<input class="inp amt num" id="gs-amt" inputmode="numeric" value="${baseAmt ? dots(baseAmt) : ""}"></label><div id="gs-out">${goalSim(s, baseAmt)}</div></div>
-    ${(g.moves || []).length ? `<h3>Historial</h3><div class="list">${[...g.moves].reverse().slice(0, 30).map(m => `<div class="item"><div class="grow"><div class="t">${m.amt > 0 ? "Aporte" : "Retiro"}</div><div class="s">${fmtDate(m.d)}</div></div><div class="amt ${m.amt > 0 ? "pos" : "neg"}">${m.amt > 0 ? "+" : "−"}${money(Math.abs(m.amt))}</div></div>`).join("")}</div>` : ""}
+    ${(g.moves || []).length ? `<h3>Historial</h3><p class="small muted" style="margin:0">Toca un movimiento para cambiar la cuenta o borrarlo.</p><div class="list">${g.moves.map((m, i) => [m, i]).reverse().slice(0, 30).map(([m, i]) => `<button class="item" data-act="gm-move" data-id="${g.id}" data-i="${i}"><div class="grow"><div class="t">${m.amt > 0 ? "Aporte" : "Retiro"}</div><div class="s">${fmtDate(m.d)} · ${m.acc ? `${m.amt > 0 ? "desde" : "a"} ${esc(accById(m.acc)?.name || "cuenta eliminada")}` : "no afectó tus cuentas"}</div></div><div class="amt ${m.amt > 0 ? "pos" : "neg"}">${m.amt > 0 ? "+" : "−"}${money(Math.abs(m.amt))}</div></button>`).join("")}</div>` : ""}
     <button class="btn block" data-act="goal-edit" data-id="${g.id}">Editar meta</button>
   </div>`, r => { const inp = r.querySelector("#gs-amt"); inp.addEventListener("input", () => { r.querySelector("#gs-out").innerHTML = goalSim(goalStats(g), parseAmt(inp.value)); }); });
+}
+function goalMoveSheet(id, i){
+  const g = S.goals.find(x => x.id === id), m = g && (g.moves || [])[i]; if (!m) return;
+  openSheet(m.amt > 0 ? "Aporte a la meta" : "Retiro de la meta", `<div class="stack">
+    <div class="row between"><span class="muted">${fmtDate(m.d)}</span><b class="num">${money(Math.abs(m.amt))}</b></div>
+    <label class="f">${m.amt > 0 ? "Salió de" : "Volvió a"}<select class="inp" id="gmv-acc"><option value="">Ninguna cuenta (no afecta mis saldos)</option>${srcOptions(m.acc || "")}</select></label>
+    <button class="btn primary block" data-act="gmv-save" data-id="${id}" data-i="${i}">Guardar</button>
+    <button class="btn danger block" data-act="gmv-del" data-id="${id}" data-i="${i}">Borrar este movimiento</button>
+    <button class="btn block" data-act="goal" data-id="${id}">Volver</button>
+  </div>`);
 }
 function goalSim(s, monthly){
   if (s.left <= 0) return `<p class="muted small">Ya cumpliste esta meta.</p>`;
@@ -1754,9 +1784,13 @@ document.addEventListener("click", async e => {
     case "new-efund": { const avg = avgMonthlySpend(); goalForm({ kind:"emergencia", name:"Fondo de emergencia", target: Math.ceil(avg * 6 / 50000) * 50000 || 0 }); break; }
     case "goal": goalDetail(id); break;
     case "goal-edit": goalForm(S.goals.find(g => g.id === id)); break;
-    case "go-save": { const name = val("go-name").trim(), target = amtVal("go-target"); if (!name || !target) return toast("Escribe nombre y monto objetivo."); const ex = id ? S.goals.find(g => g.id === id) : null; const g = { ...(ex || { moves:[], createdAt: Date.now() }), name, target, deadline: val("go-deadline") || null, plan: amtVal("go-plan") || null, kind: val("go-kind") || "normal" }; if (!ex){ const init = amtVal("go-init"); if (init) g.moves = [{ d: today(), amt: init }]; } if (await safe(() => put("goals", g), "Meta guardada")) closeSheet(); break; }
+    case "go-save": { const name = val("go-name").trim(), target = amtVal("go-target"); if (!name || !target) return toast("Escribe nombre y monto objetivo."); const ex = id ? S.goals.find(g => g.id === id) : null; const where = val("go-acc"); const g = { ...(ex || { moves:[], createdAt: Date.now() }), name, target, deadline: val("go-deadline") || null, plan: amtVal("go-plan") || null, kind: val("go-kind") || "normal", saveAcc: where && where !== "otro" ? where : null, saveWhere: where === "otro" ? val("go-where").trim() || null : null }; if (!ex){ const init = amtVal("go-init"), acc = val("go-init-acc"); if (init) g.moves = [{ d: today(), amt: init, ...(acc ? { acc } : {}) }]; } if (await safe(() => put("goals", g), "Meta guardada")) closeSheet(); break; }
     case "go-del": arm(el, async () => { if (await safe(() => del("goals", id), "Meta eliminada")) closeSheet(); }); break;
-    case "gm-add": { const amt = amtVal("gm-amt"); if (!amt) return toast("Escribe un monto."); const g = S.goals.find(x => x.id === id); const sign = Number(el.dataset.sign); if (sign < 0 && amt > goalSaved(g)) return toast("No puedes retirar más de lo ahorrado."); const moves = [...(g.moves || []), { d: today(), amt: sign * amt }].slice(-300); if (await safe(() => put("goals", { ...g, moves }), sign > 0 ? "Aporte registrado" : "Retiro registrado")) setTimeout(() => goalDetail(id), 60); break; }
+    case "gm-add": { const amt = amtVal("gm-amt"); if (!amt) return toast("Escribe un monto."); const g = S.goals.find(x => x.id === id); const sign = Number(el.dataset.sign); const acc = val("gm-acc"); if (!acc) return toast("Primero crea una cuenta en Ajustes."); if (sign < 0 && amt > goalSaved(g)) return toast("No puedes retirar más de lo ahorrado."); const a = accById(acc); const moves = [...(g.moves || []), { d: today(), amt: sign * amt, acc }].slice(-300); if (await safe(() => put("goals", { ...g, moves }))){ const bal = accBalance(a); toast(sign > 0 ? (bal < 0 ? `Aporte registrado. Ojo: ${a.name} quedó en ${money(bal)}` : `Aporte registrado. ${a.name} quedó en ${money(bal)}`) : `Retiro registrado. Volvió a ${a.name}`); setTimeout(() => goalDetail(id), 60); } break; }
+    case "gm-move": goalMoveSheet(id, Number(el.dataset.i)); break;
+    case "gmv-save": { const g = S.goals.find(x => x.id === id), i = Number(el.dataset.i); if (!g || !g.moves[i]) break; const acc = val("gmv-acc"); const moves = g.moves.map((m, j) => { if (j !== i) return m; const { acc: _old, ...rest } = m; return acc ? { ...rest, acc } : rest; }); if (await safe(() => put("goals", { ...g, moves }), "Movimiento actualizado")) setTimeout(() => goalDetail(id), 60); break; }
+    case "gmv-del": arm(el, async () => { const g = S.goals.find(x => x.id === id), i = Number(el.dataset.i); if (!g || !g.moves[i]) return; const moves = g.moves.filter((_, j) => j !== i); if (await safe(() => put("goals", { ...g, moves }), "Movimiento borrado")) setTimeout(() => goalDetail(id), 60); }); break;
+    case "goto-goals": UI.settings = null; UI.tab = "plan"; UI.plan = "metas"; render(); window.scrollTo(0,0); break;
 
     case "new-debt": debtForm(); break;
     case "debt": debtDetail("debt", id); break;
